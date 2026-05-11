@@ -1,4 +1,4 @@
-FROM node:20
+FROM node:22
 
 WORKDIR /app
 
@@ -10,4 +10,4 @@ COPY . .
 
 EXPOSE 8081
 
-CMD ["npx", "expo", "start"]
+CMD ["npx", "expo", "start", "--lan", "--non-interactive"]

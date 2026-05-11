@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { Image } from 'expo-image';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import ParallaxScrollView from '@/components/parallax-scroll-view';
-
-const API_URL = 'http://localhost:3000/status'; // Ajustar según sea necesario
 
 export default function HomeScreen() {
   const [status, setStatus] = useState({
@@ -17,6 +15,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
 
   const fetchStatus = async () => {
+    const API_URL = (process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000') + '/status';
     try {
       const response = await fetch(API_URL);
       const data = await response.json();
