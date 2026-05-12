@@ -3,10 +3,9 @@ const cors = require('cors');
 require('dotenv').config();
 
 const connectDB = require('./config/db');
+const authRoutes = require('./routes/authRoutes');
 
 const app = express();
-
-connectDB();
 
 app.use(cors());
 app.use(express.json());
@@ -27,8 +26,19 @@ app.get('/status', (req, res) => {
   });
 });
 
-const PORT = process.env.PORT || 3000;
+app.use('/auth', authRoutes);
 
-app.listen(PORT, () => {
-  console.log(`Servidor corriendo en puerto ${PORT}`);
+const PORT = process.env.PORT || 5000;
+
+async function startServer() {
+  await connectDB();
+
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Servidor corriendo en puerto ${PORT}`);
+  });
+}
+
+startServer().catch((error) => {
+  console.error('No se pudo iniciar el servidor', error);
+  process.exit(1);
 });
