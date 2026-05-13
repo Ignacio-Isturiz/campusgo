@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Animated, Dimensions, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
+import { getLastRoute } from '@/src/utils/storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
@@ -40,14 +41,19 @@ export default function LoadingScreen() {
       }),
     ]).start();
 
-    // Después de 2 segundos, transiciona al feed
-    const timer = setTimeout(() => {
+    // Después de 2 segundos, transiciona a la última ruta visitada o a mi-cuenta por defecto
+    const timer = setTimeout(async () => {
       Animated.timing(fadeAnim, {
         toValue: 0,
         duration: 500,
         useNativeDriver: true,
-      }).start(() => {
-        router.replace('/(tabs)');
+      }).start(async () => {
+        const last = await getLastRoute();
+        if (last && last !== '/(tabs)' && last !== '/(tabs)/index') {
+          router.replace(last);
+        } else {
+          router.replace('/(tabs)/mi-cuenta');
+        }
       });
     }, 2000);
 

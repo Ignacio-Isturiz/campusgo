@@ -1,0 +1,228 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { accountPalette } from '@/src/components/account/AccountStyles';
+
+export default function FinalCalcScreen() {
+  const [currentGrade, setCurrentGrade] = useState('3.2');
+  const [remainingWeight, setRemainingWeight] = useState('40');
+  const [targetGrade, setTargetGrade] = useState('3.5');
+  const [neededGrade, setNeededGrade] = useState(0);
+
+  useEffect(() => {
+    const cur = parseFloat(currentGrade) || 0;
+    const weight = parseFloat(remainingWeight) || 0;
+    const target = parseFloat(targetGrade) || 0;
+
+    if (weight > 0) {
+      const currentWeight = 100 - weight;
+      const currentPoints = cur * (currentWeight / 100);
+      const needed = (target - currentPoints) / (weight / 100);
+      setNeededGrade(needed > 0 ? needed : 0);
+    }
+  }, [currentGrade, remainingWeight, targetGrade]);
+
+  const InputField = ({ label, value, onChangeText, suffix }: any) => (
+    <View style={styles.inputItem}>
+      <Text style={styles.inputLabel}>{label}</Text>
+      <View style={styles.inputWrapper}>
+        <TextInput
+          style={styles.textInput}
+          value={value}
+          onChangeText={onChangeText}
+          keyboardType="numeric"
+          placeholder="0.0"
+        />
+        <Text style={styles.suffix}>{suffix}</Text>
+      </View>
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Ionicons name="chevron-back" size={24} color={accountPalette.text} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>¿Cuánto necesito en el final?</Text>
+        <TouchableOpacity>
+          <Ionicons name="information-circle-outline" size={24} color={accountPalette.text} />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.inputsCard}>
+          <InputField
+            label="Nota actual del curso"
+            value={currentGrade}
+            onChangeText={setCurrentGrade}
+            suffix="/ 5.0"
+          />
+          <View style={styles.divider} />
+          <InputField
+            label="Peso de lo que falta (porcentaje)"
+            value={remainingWeight}
+            onChangeText={setRemainingWeight}
+            suffix="%"
+          />
+          <View style={styles.divider} />
+          <InputField
+            label="Nota objetivo"
+            value={targetGrade}
+            onChangeText={setTargetGrade}
+            suffix="/ 5.0"
+          />
+        </View>
+
+        <View style={styles.resultCard}>
+          <View style={styles.resultHeader}>
+            <Text style={styles.resultTitle}>Necesitas en el final</Text>
+            <Ionicons name="arrow-redo-outline" size={18} color={accountPalette.primary} />
+          </View>
+          <View style={styles.valueRow}>
+            <Text style={styles.resultValue}>{neededGrade.toFixed(2)}</Text>
+            <Text style={styles.valueSuffix}>/ 5.0</Text>
+          </View>
+        </View>
+
+        <View style={styles.infoBox}>
+          <Ionicons name="information-circle" size={20} color={accountPalette.textMuted} />
+          <Text style={styles.infoText}>
+            Necesitas sacar <Text style={{ fontWeight: '700' }}>{neededGrade.toFixed(2)}</Text> o más en el final para alcanzar tu nota objetivo.
+          </Text>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#FFF',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: accountPalette.text,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 40,
+  },
+  inputsCard: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 25,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    marginBottom: 30,
+    borderWidth: 1,
+    borderColor: '#F1F3F5',
+  },
+  inputItem: {
+    paddingVertical: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: accountPalette.text,
+    flex: 1,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    height: 44,
+    minWidth: 110,
+    borderWidth: 1,
+    borderColor: '#F1F3F5',
+  },
+  textInput: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: accountPalette.text,
+    textAlign: 'right',
+    flex: 1,
+    marginRight: 5,
+  },
+  suffix: {
+    fontSize: 13,
+    color: accountPalette.textMuted,
+    fontWeight: '500',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#F1F3F5',
+  },
+  resultCard: {
+    backgroundColor: '#F8F9FA',
+    borderRadius: 30,
+    padding: 30,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#F1F3F5',
+    marginBottom: 20,
+  },
+  resultHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 15,
+  },
+  resultTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: accountPalette.text,
+  },
+  valueRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 5,
+  },
+  resultValue: {
+    fontSize: 56,
+    fontWeight: '800',
+    color: accountPalette.primary,
+  },
+  valueSuffix: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: accountPalette.textMuted,
+  },
+  infoBox: {
+    flexDirection: 'row',
+    backgroundColor: '#F8F9FA',
+    padding: 16,
+    borderRadius: 20,
+    gap: 12,
+    alignItems: 'center',
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 13,
+    color: accountPalette.textMuted,
+    lineHeight: 18,
+  },
+});
