@@ -229,7 +229,7 @@ export default function AuthScreen() {
 
         const response = await verifyLoginOtp(challengeId, form.otp.trim(), email);
         setSuccess(response.message || 'Acceso concedido.');
-        router.replace('/(tabs)');
+        router.replace('/loading');
         return;
       }
 
@@ -244,7 +244,7 @@ export default function AuthScreen() {
 
         const response = await verifyRegisterOtp(challengeId, form.otp.trim(), email);
         setSuccess(response.message || 'Registro completado.');
-        router.replace('/(tabs)');
+        router.replace('/loading');
         return;
       }
 

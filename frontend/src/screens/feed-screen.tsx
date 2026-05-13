@@ -8,13 +8,16 @@ import {
   Animated,
   useWindowDimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 
 import FeedHeader from '@/components/feed/feed-header';
 import FeedCard from '@/components/feed/feed-card';
+import BottomNavigation from '@/components/feed/bottom-navigation';
 
 const { width, height } = Dimensions.get('window');
 
-// Colores modernos inspirados en Instagram/TikTok
+// Colores modernos
 const colors = {
   background: '#0a0a0a',
   surface: '#121212',
@@ -27,7 +30,6 @@ const colors = {
 };
 
 // Datos placeholder para las tarjetas del feed
-// Estos datos se reemplazarán con datos reales del backend en el futuro
 const PLACEHOLDER_FEED_ITEMS = [
   {
     id: '1',
@@ -92,25 +94,17 @@ const PLACEHOLDER_FEED_ITEMS = [
 ];
 
 /**
- * HomeScreen - Feed social principal estilo Instagram moderno
- * Pantalla principal después del login y loading screen
- * Integrada con el sistema de tabs de Expo Router
- * 
- * Características:
- * - Feed vertical infinito de publicaciones
- * - Animaciones suaves
- * - Diseño moderno con estilo Instagram/TikTok
- * - Responsive para móvil y desktop
- * - Like/comment/share interactivos
+ * FeedScreen - Feed social principal estilo Instagram moderno
+ * Pantalla principal después del login
+ * Incluye header, feed de tarjetas y navegación inferior
  */
-export default function HomeScreen() {
+export default function FeedScreen() {
   const { width: screenWidth } = useWindowDimensions();
   const isMobile = screenWidth < 768;
   const [feedItems, setFeedItems] = useState(PLACEHOLDER_FEED_ITEMS);
+  const [activeTab, setActiveTab] = useState<'home' | 'search' | 'add' | 'notifications' | 'profile'>('home');
 
-  /**
-   * Alterna el estado de "like" en una publicación
-   */
+  // Función para alternar like en una tarjeta
   const handleToggleLike = (id: string) => {
     setFeedItems((prevItems) =>
       prevItems.map((item) =>
@@ -125,9 +119,6 @@ export default function HomeScreen() {
     );
   };
 
-  /**
-   * Renderiza cada tarjeta del feed con animaciones
-   */
   const renderFeedCard = ({ item, index }: { item: (typeof PLACEHOLDER_FEED_ITEMS)[0]; index: number }) => (
     <Animated.View
       style={[
@@ -146,13 +137,13 @@ export default function HomeScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor={colors.background} />
 
-      {/* Header con logo e iconos */}
+      {/* Header */}
       <FeedHeader />
 
-      {/* Feed principal */}
+      {/* Feed */}
       <View style={styles.feedContainer}>
         <FlatList
           data={feedItems}
@@ -170,7 +161,13 @@ export default function HomeScreen() {
           updateCellsBatchingPeriod={50}
         />
       </View>
-    </View>
+
+      {/* Bottom Navigation */}
+      <BottomNavigation
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      />
+    </SafeAreaView>
   );
 }
 
@@ -186,7 +183,6 @@ const styles = StyleSheet.create({
   feedContent: {
     paddingHorizontal: 0,
     paddingVertical: 8,
-    paddingBottom: 16,
   },
   cardWrapper: {
     marginBottom: 12,
