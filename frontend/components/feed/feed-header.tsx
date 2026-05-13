@@ -1,7 +1,9 @@
 import React from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, useWindowDimensions } from 'react-native';
+import { Platform, View, StyleSheet, Text, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
+import { signOut } from '@/src/utils/storage';
 
 const colors = {
   background: '#0a0a0a',
@@ -23,47 +25,26 @@ export default function FeedHeader() {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
 
+  const handleLogout = async () => {
+    await signOut();
+    if (Platform.OS === 'web') {
+      window.location.replace('/');
+      return;
+    }
+    router.replace('/');
+  };
+
   return (
-    <View
-      style={[
-        styles.header,
-        {
-          paddingTop: insets.top,
-        },
-      ]}
-    >
-      {/* Fondo con glassmorphism suave */}
-      <View style={styles.headerBackground} />
-
-      <View style={styles.headerContent}>
-        {/* Logo/Brand */}
-        <View style={styles.brandSection}>
-          <View style={styles.brandIcon}>
-            <Ionicons name="flash" size={20} color={colors.accent} />
-          </View>
-          <Text style={styles.brandName}>CampusGO</Text>
-        </View>
-
-        {/* Iconos de acción */}
-        <View style={styles.actionIcons}>
-          <TouchableOpacity
-            style={styles.iconButton}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="heart-outline" size={24} color={colors.primary} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.iconButton}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="mail-outline" size={24} color={colors.primary} />
-            <View style={styles.notificationBadge} />
-          </TouchableOpacity>
-        </View>
+    <View style={[styles.headerMinimal, { paddingTop: insets.top }]}>      
+      <View style={styles.actionIconsMinimal}>
+        <TouchableOpacity
+          style={styles.iconButton}
+          activeOpacity={0.7}
+          onPress={handleLogout}
+        >
+          <Ionicons name="log-out-outline" size={24} color={colors.primary} />
+        </TouchableOpacity>
       </View>
-
-      {/* Línea divisoria sutil */}
-      <View style={styles.headerDivider} />
     </View>
   );
 }
@@ -148,5 +129,14 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
     marginHorizontal: 0,
+  },
+  headerMinimal: {
+    backgroundColor: colors.background,
+    zIndex: 100,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  actionIconsMinimal: {
+    alignItems: 'flex-end',
   },
 });

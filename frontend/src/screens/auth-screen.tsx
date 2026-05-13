@@ -22,6 +22,7 @@ import {
   verifyLoginOtp,
   verifyRegisterOtp,
 } from '@/src/services/auth';
+import { saveToken, saveUser } from '@/src/utils/storage';
 
 type Mode = 'login' | 'register' | 'forgot';
 type Stage = 'form' | 'otp' | 'reset';
@@ -228,6 +229,12 @@ export default function AuthScreen() {
         }
 
         const response = await verifyLoginOtp(challengeId, form.otp.trim(), email);
+        if (response.token) {
+          await saveToken(response.token);
+        }
+        if (response.user) {
+          await saveUser(response.user);
+        }
         setSuccess(response.message || 'Acceso concedido.');
         router.replace('/loading');
         return;
@@ -243,6 +250,12 @@ export default function AuthScreen() {
         }
 
         const response = await verifyRegisterOtp(challengeId, form.otp.trim(), email);
+        if (response.token) {
+          await saveToken(response.token);
+        }
+        if (response.user) {
+          await saveUser(response.user);
+        }
         setSuccess(response.message || 'Registro completado.');
         router.replace('/loading');
         return;
