@@ -49,7 +49,12 @@ export default function MiCuentaScreen() {
         setPhoto(userData.photoUrl);
       } else {
         const savedPhoto = await getPhoto();
-        setPhoto(savedPhoto);
+        // ignore saved blob URIs
+        if (savedPhoto && !savedPhoto.startsWith('blob:')) {
+          setPhoto(savedPhoto);
+        } else {
+          setPhoto(null);
+        }
       }
     }
     loadData();
@@ -65,8 +70,10 @@ export default function MiCuentaScreen() {
 
     if (!result.canceled) {
       const uri = result.assets[0].uri;
+      // show a local preview immediately, but DON'T persist blob URIs locally.
+      // We will persist only the remote URL returned by the backend so it
+      // remains valid across refreshes and devices.
       setPhoto(uri);
-      await savePhoto(uri);
 
       // Upload base64 to backend so it persists and is available on other devices
       try {

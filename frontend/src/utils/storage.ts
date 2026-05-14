@@ -5,6 +5,8 @@ const TOKEN_KEY = 'auth_token';
 const LAST_ROUTE_KEY = 'last_route';
 const USER_KEY = 'user_data';
 const PHOTO_KEY = 'profile_photo';
+const PREF_THEME_KEY = 'pref_theme';
+const PREF_COLOR_KEY = 'pref_color';
 
 /**
  * Guarda el token de autenticación de forma segura.
@@ -92,11 +94,41 @@ export async function getUser(): Promise<any | null> {
  * Guarda la URI de la foto de perfil.
  */
 export async function savePhoto(uri: string): Promise<void> {
+  // Only persist remote HTTP(S) URLs. Do not persist blob: URLs (temporary).
+  if (!uri) return;
+  if (uri.startsWith('blob:')) {
+    // do not persist blob URIs as they are temporary
+    return;
+  }
   if (Platform.OS === 'web') {
     localStorage.setItem(PHOTO_KEY, uri);
     return;
   }
   await SecureStore.setItemAsync(PHOTO_KEY, uri);
+}
+
+export async function savePreferences(theme: 'light' | 'dark', instColor: string): Promise<void> {
+  const data = JSON.stringify({ theme, instColor });
+  if (Platform.OS === 'web') {
+    localStorage.setItem(PREF_THEME_KEY, data);
+    return;
+  }
+  await SecureStore.setItemAsync(PREF_THEME_KEY, data);
+}
+
+export async function getPreferences(): Promise<{ theme: string; instColor: string } | null> {
+  let data: string | null = null;
+  if (Platform.OS === 'web') {
+    data = localStorage.getItem(PREF_THEME_KEY);
+  } else {
+    data = await SecureStore.getItemAsync(PREF_THEME_KEY);
+  }
+  if (!data) return null;
+  try {
+    return JSON.parse(data);
+  } catch (e) {
+    return null;
+  }
 }
 
 /**
@@ -130,5 +162,25 @@ export async function clearAll(): Promise<void> {
  * Cierra la sesión completa reutilizando la limpieza centralizada.
  */
 export async function signOut(): Promise<void> {
+  // Also call backend logout if available (best-effort)
+  try {
+    const token = await getToken();
+    if (token) {
+      const API_URL = (process.env.EXPO_PUBLIC_API_URL as any) || 'http://localhost:5000';
+      await fetch(`${API_URL}/auth/logout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+    }
+  } catch (e) {
+    // ignore errors
+  }
+
   await clearAll();
 }
+
+// backward-compat alias
+// no-op: keep exports as defined above
