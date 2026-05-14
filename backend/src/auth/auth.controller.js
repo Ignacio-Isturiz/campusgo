@@ -38,10 +38,11 @@ const {
 } = require('./auth.validators');
 
 function buildAuthSuccess(message, user, session) {
+  const payload = toUserPayload(user);
   return {
     message,
     token: session.token,
-    user: toUserPayload(user),
+    user: payload,
   };
 }
 
@@ -324,9 +325,10 @@ async function assignRole(req, res) {
 }
 
 async function me(req, res) {
-  return res.json({
-    user: toUserPayload(req.user),
-  });
+  // Include photoUrl and full fields for frontend convenience
+  const payload = toUserPayload(req.user);
+  payload.photoUrl = req.user.photoUrl || null;
+  return res.json({ user: payload });
 }
 
 module.exports = {

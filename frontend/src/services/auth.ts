@@ -31,6 +31,7 @@ export type AuthResponse = {
     id: string;
     email: string;
     role: string;
+    photoUrl?: string | null;
   };
 };
 

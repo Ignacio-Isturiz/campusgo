@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
-import { getUser, signOut, savePhoto, getPhoto } from '@/src/utils/storage';
+import { getUser, saveUser, signOut, savePhoto, getPhoto } from '@/src/utils/storage';
 import { accountPalette } from '@/src/components/account/AccountStyles';
 
 /**
@@ -43,9 +43,14 @@ export default function MiCuentaScreen() {
   useEffect(() => {
     async function loadData() {
       const userData = await getUser();
-      const savedPhoto = await getPhoto();
       setUser(userData);
-      setPhoto(savedPhoto);
+      // Load photo from user data first, then fallback to saved photo
+      if (userData?.photoUrl) {
+        setPhoto(userData.photoUrl);
+      } else {
+        const savedPhoto = await getPhoto();
+        setPhoto(savedPhoto);
+      }
     }
     loadData();
   }, []);
@@ -62,6 +67,61 @@ export default function MiCuentaScreen() {
       const uri = result.assets[0].uri;
       setPhoto(uri);
       await savePhoto(uri);
+
+      // Upload base64 to backend so it persists and is available on other devices
+      try {
+        const token = (await import('@/src/utils/storage').then((m) => m.getToken())) as string | null;
+        if (token) {
+          // convert uri to base64 in a cross-platform way
+          async function uriToBase64(u: string) {
+            if (Platform.OS === 'web') {
+              const resp = await fetch(u);
+              const blob = await resp.blob();
+              return await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                  const dataUrl = reader.result as string;
+                  resolve(dataUrl.split(',')[1]);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+              });
+            }
+            const FileSystem = await import('expo-file-system');
+            return await FileSystem.readAsStringAsync(u, { encoding: FileSystem.EncodingType.Base64 });
+          }
+
+          const base64 = await uriToBase64(uri);
+          const fileName = `profile_${Date.now()}.jpg`;
+
+          const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
+          const r = await fetch(`${API_URL}/auth/profile/photo`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ base64, fileName }),
+          });
+
+          if (r.ok) {
+            const data = await r.json();
+            if (data.user && data.user.photoUrl) {
+              // save the remote url locally so it persists across refresh
+              await savePhoto(data.user.photoUrl);
+              // also update the saved user data so photoUrl persists
+              if (user) {
+                const updatedUser = { ...user, photoUrl: data.user.photoUrl };
+                await saveUser(updatedUser);
+                setUser(updatedUser);
+              }
+              setPhoto(data.user.photoUrl);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Could not upload photo to backend:', err);
+      }
     }
   };
 
