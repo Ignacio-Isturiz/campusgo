@@ -15,6 +15,7 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { getUser, saveUser, getPhoto, savePhoto } from '@/src/utils/storage';
+import { getToken as getUserToken } from '@/src/utils/storage';
 import { accountPalette, commonStyles } from '@/src/components/account/AccountStyles';
 
 /**
@@ -44,6 +45,8 @@ const InputField = ({ label, value, onChangeText, placeholder, multiline = false
       style={[styles.input, multiline && styles.textArea]}
       value={value}
       onChangeText={onChangeText}
+      editable={false}
+      selectTextOnFocus={false}
       placeholder={placeholder}
       multiline={multiline}
       placeholderTextColor="#999"
@@ -60,6 +63,7 @@ export default function InfoScreen() {
     semester: '6° semestre',
     description: 'Apasionado por la tecnología y el desarrollo de software.',
   });
+  // Load persisted user and ensure fields are not editable
   const [photo, setPhoto] = useState<string | null>(null);
 
   useEffect(() => {
@@ -76,8 +80,10 @@ export default function InfoScreen() {
         }));
       }
       
-      if (savedPhoto) {
+      if (savedPhoto && !savedPhoto.startsWith('blob:')) {
         setPhoto(savedPhoto);
+      } else {
+        setPhoto(null);
       }
     }
     loadData();
@@ -95,12 +101,76 @@ export default function InfoScreen() {
       const uri = result.assets[0].uri;
       setPhoto(uri);
       await savePhoto(uri);
+      // Upload base64 to backend so it persists and is available on other devices
+      try {
+        const token = await getUserToken();
+        if (token) {
+          async function uriToBase64(u: string) {
+            if (Platform.OS === 'web') {
+              const resp = await fetch(u);
+              const blob = await resp.blob();
+              return await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                  const dataUrl = reader.result as string;
+                  resolve(dataUrl.split(',')[1]);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+              });
+            }
+            const FileSystem = await import('expo-file-system');
+            return await FileSystem.readAsStringAsync(u, { encoding: FileSystem.EncodingType.Base64 });
+          }
+
+          const base64 = await uriToBase64(uri);
+          const fileName = `profile_${Date.now()}.jpg`;
+
+          const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
+          const r = await fetch(`${API_URL}/auth/profile/photo`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ base64, fileName }),
+          });
+
+          if (r.ok) {
+            const data = await r.json();
+            if (data.user && data.user.photoUrl) {
+              await savePhoto(data.user.photoUrl);
+              setPhoto(data.user.photoUrl);
+              // update saved user object so photoUrl persists when user hits Guardar
+              try {
+                const stored = await getUser();
+                if (stored) {
+                  const updated = { ...stored, photoUrl: data.user.photoUrl };
+                  await saveUser(updated);
+                }
+              } catch (e) {
+                // non-fatal
+                console.warn('Could not update saved user with photoUrl', e);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Could not upload photo to backend:', err);
+      }
     }
   };
 
   const handleSave = async () => {
-    // Aquí iría la lógica para guardar en el backend
-    await saveUser(form);
+    // Merge form data into existing saved user to avoid wiping other fields (eg. photoUrl)
+    try {
+      const stored = await getUser();
+      const merged = stored ? { ...stored, ...form } : { ...form };
+      await saveUser(merged);
+    } catch (e) {
+      // fallback: save form only
+      await saveUser(form);
+    }
     router.back();
   };
 
