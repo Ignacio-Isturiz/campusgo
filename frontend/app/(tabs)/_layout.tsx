@@ -16,7 +16,11 @@ const SCREENS = [
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const { width } = useWindowDimensions();
-  const isDesktopWeb = Platform.OS === 'web' && width >= 900;
+  // Determine if this is a desktop web layout based on initial dimensions.
+  // We freeze the decision on first render to avoid switching the navigator
+  // tree between renders (which breaks react-navigation's TabRouter).
+  const isDesktopRef = React.useRef<boolean>(Platform.OS === 'web' && width >= 900);
+  const isDesktopWeb = isDesktopRef.current;
 
   if (isDesktopWeb) {
     return (

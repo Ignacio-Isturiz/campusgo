@@ -27,6 +27,9 @@ app.get('/status', (req, res) => {
 });
 
 app.use('/auth', authRoutes);
+// serve uploaded static files
+const path = require('path');
+app.use('/uploads', express.static(path.join(__dirname, '..', 'public', 'uploads')));
 
 const PORT = process.env.PORT || 5000;
 

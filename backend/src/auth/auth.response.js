@@ -3,6 +3,7 @@ function toUserPayload(user) {
     id: String(user._id),
     email: user.email,
     role: user.role,
+    photoUrl: user.photoUrl || null,
   };
 }
 

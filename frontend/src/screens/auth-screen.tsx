@@ -408,15 +408,8 @@ export default function AuthScreen() {
               <Pressable onPress={() => handleModeChange('forgot')}>
                 <Text style={styles.linkText}>¿Olvidaste tu contraseña?</Text>
               </Pressable>
-              <Text style={styles.helperText}>Solo correos con dominio {ALLOWED_DOMAIN}</Text>
             </View>
 
-            <View style={styles.footerNote}>
-              <Ionicons name="shield-checkmark" size={16} color={palette.warmDeep} />
-              <Text style={styles.footerNoteText}>
-                Roles disponibles: Admin, Bienestar y Estudiante. El registro crea automáticamente un Estudiante.
-              </Text>
-            </View>
           </View>
         </View>
       </ScrollView>
@@ -849,20 +842,5 @@ const styles = StyleSheet.create({
   helperText: {
     color: palette.muted,
     fontSize: 13,
-  },
-  footerNote: {
-    marginTop: 22,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: palette.line,
-  },
-  footerNoteText: {
-    flex: 1,
-    color: palette.muted,
-    fontSize: 13,
-    lineHeight: 19,
   },
 });

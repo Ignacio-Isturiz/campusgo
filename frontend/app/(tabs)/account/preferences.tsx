@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,8 +16,20 @@ export default function PreferencesScreen() {
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [language, setLanguage] = useState('Español');
   const [instColor, setInstColor] = useState('#FF7A00');
+  const [loaded, setLoaded] = useState(false);
 
   const institutionalColors = ['#FF7A00', '#F24822', '#F8C548', '#1A1A1A'];
+
+  useEffect(() => {
+    (async () => {
+      const prefs = await import('@/src/utils/storage').then((m) => m.getPreferences());
+      if (prefs) {
+        setTheme(prefs.theme as any);
+        setInstColor(prefs.instColor || instColor);
+      }
+      setLoaded(true);
+    })();
+  }, []);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
@@ -83,7 +95,7 @@ export default function PreferencesScreen() {
                   instColor === color && styles.colorCircleActive,
                 ]}
                 onPress={() => setInstColor(color)}
-              >
+                >
                 {instColor === color && (
                   <Ionicons name="checkmark" size={16} color="#FFF" />
                 )}
@@ -105,6 +117,15 @@ export default function PreferencesScreen() {
             <Text style={styles.unaulaCardSubtitle}>Identidad, Educación y Futuro</Text>
           </View>
         </View>
+        <TouchableOpacity
+          style={[styles.savePrefsBtn]}
+          onPress={async () => {
+            await import('@/src/utils/storage').then((m) => m.savePreferences(theme, instColor));
+            // no reload here; theme is applied via global hook
+          }}
+        >
+          <Text style={styles.savePrefsText}>Guardar preferencias</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -114,6 +135,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFF',
+  },
+
+  savePrefsBtn: {
+    marginTop: 20,
+    marginHorizontal: 20,
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: accountPalette.primary,
+    alignItems: 'center',
+  },
+  savePrefsText: {
+    color: '#FFF',
+    fontWeight: '700',
   },
   header: {
     flexDirection: 'row',
