@@ -1,47 +1,77 @@
 const express = require('express');
+const http = require('http');
 const cors = require('cors');
-require('dotenv').config();
+const dotenv = require('dotenv');
+
+const { Server } = require('socket.io');
 
 const connectDB = require('./config/db');
-const authRoutes = require('./auth/auth.routes');
+
+const postRoutes = require(
+  './routes/postRoutes'
+);
+
+dotenv.config();
 
 const app = express();
 
+const server = http.createServer(app);
+
+const io = new Server(server, {
+  cors: {
+    origin: '*',
+  },
+});
+
+global.io = io;
+
+// conectar mongodb
+connectDB();
+
+// middlewares
 app.use(cors());
+
 app.use(express.json());
 
-const mongoose = require('mongoose');
+// pasar io
+app.use((req, res, next) => {
+  req.io = io;
 
+  next();
+});
+
+// sockets
+io.on('connection', socket => {
+  console.log(
+    'Usuario conectado'
+  );
+
+  socket.on('disconnect', () => {
+    console.log(
+      'Usuario desconectado'
+    );
+  });
+});
+
+// rutas
+app.use(
+  '/api/posts',
+  postRoutes
+);
+
+// ruta test
 app.get('/', (req, res) => {
   res.json({
-    message: 'Backend funcionando 🚀'
+    message:
+      'Backend funcionando 🚀',
   });
 });
 
-app.get('/status', (req, res) => {
-  const dbStatus = mongoose.connection.readyState === 1 ? 'Conectado' : 'Desconectado';
-  res.json({
-    backend: 'Corriendo',
-    mongodb: dbStatus
-  });
-});
+const PORT =
+  process.env.PORT || 5000;
 
-app.use('/auth', authRoutes);
-// serve uploaded static files
-const path = require('path');
-app.use('/uploads', express.static(path.join(__dirname, '..', 'public', 'uploads')));
-
-const PORT = process.env.PORT || 5000;
-
-async function startServer() {
-  await connectDB();
-
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Servidor corriendo en puerto ${PORT}`);
-  });
-}
-
-startServer().catch((error) => {
-  console.error('No se pudo iniciar el servidor', error);
-  process.exit(1);
+server.listen(PORT, () => {
+  console.log(
+    `Servidor corriendo en puerto ${PORT}`
+  );
 });

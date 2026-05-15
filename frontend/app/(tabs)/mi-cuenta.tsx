@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { getUser, saveUser, signOut, savePhoto, getPhoto } from '@/src/utils/storage';
 import { accountPalette } from '@/src/components/account/AccountStyles';
@@ -40,25 +41,27 @@ export default function MiCuentaScreen() {
   const [user, setUser] = useState<any>(null);
   const [photo, setPhoto] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadData() {
-      const userData = await getUser();
-      setUser(userData);
-      // Load photo from user data first, then fallback to saved photo
-      if (userData?.photoUrl) {
-        setPhoto(userData.photoUrl);
+  const loadData = async () => {
+    const userData = await getUser();
+    setUser(userData);
+    // Load photo from user data first, then fallback to saved photo
+    if (userData?.photoUrl) {
+      setPhoto(userData.photoUrl);
+    } else {
+      const savedPhoto = await getPhoto();
+      if (savedPhoto && !savedPhoto.startsWith('blob:')) {
+        setPhoto(savedPhoto);
       } else {
-        const savedPhoto = await getPhoto();
-        // ignore saved blob URIs
-        if (savedPhoto && !savedPhoto.startsWith('blob:')) {
-          setPhoto(savedPhoto);
-        } else {
-          setPhoto(null);
-        }
+        setPhoto(null);
       }
     }
-    loadData();
-  }, []);
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, []),
+  );
 
   const handlePickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -70,10 +73,8 @@ export default function MiCuentaScreen() {
 
     if (!result.canceled) {
       const uri = result.assets[0].uri;
-      // show a local preview immediately, but DON'T persist blob URIs locally.
-      // We will persist only the remote URL returned by the backend so it
-      // remains valid across refreshes and devices.
       setPhoto(uri);
+      await savePhoto(uri);
 
       // Upload base64 to backend so it persists and is available on other devices
       try {
@@ -95,7 +96,7 @@ export default function MiCuentaScreen() {
               });
             }
             const FileSystem = await import('expo-file-system');
-            return await FileSystem.readAsStringAsync(u, { encoding: FileSystem.EncodingType.Base64 });
+            return await FileSystem.readAsStringAsync(u, { encoding: 'base64' });
           }
 
           const base64 = await uriToBase64(uri);

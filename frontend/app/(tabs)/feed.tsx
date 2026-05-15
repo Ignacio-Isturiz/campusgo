@@ -1,19 +1,251 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { saveLastRoute } from '@/src/utils/storage';
+import React, {
+  useEffect,
+  useState,
+} from 'react';
+
+import {
+  View,
+  FlatList,
+  StyleSheet,
+  TouchableOpacity,
+  Text,
+  Alert,
+} from 'react-native';
+
+import PostCard from '@/components/feed/PostCard';
+
+import CreatePostModal from '@/components/feed/CreatePostModal';
+
+import {
+  getFeed,
+  createPost,
+  toggleLike,
+  deletePost,
+} from '@/src/services/postService';
+
+import socket from '@/src/services/socket';
+
+import { getToken } from '@/src/utils/storage';
 
 export default function FeedScreen() {
+  const [posts, setPosts] = useState<any[]>(
+    []
+  );
+
+  const [modalVisible, setModalVisible] =
+    useState(false);
+
+  const [token, setToken] = useState('');
+
   useEffect(() => {
-    saveLastRoute('/(tabs)/feed');
+    const initialize = async () => {
+      try {
+        // obtener token guardado
+        const savedToken =
+          await getToken();
+
+        if (!savedToken) {
+          console.log(
+            'No hay token guardado'
+          );
+
+          return;
+        }
+
+        // guardar token en estado
+        setToken(savedToken);
+
+        // cargar feed
+        const data = await getFeed(
+          savedToken
+        );
+
+        setPosts(data);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+
+    initialize();
+
+    // sockets realtime
+    socket.on('newPost', post => {
+      setPosts(prev => [post, ...prev]);
+    });
+
+    socket.on(
+      'deletePost',
+      postId => {
+        setPosts(prev =>
+          prev.filter(
+            p => p._id !== postId
+          )
+        );
+      }
+    );
+
+    socket.on(
+      'updateLike',
+      updated => {
+        setPosts(prev =>
+          prev.map(post =>
+            post._id === updated.postId
+              ? {
+                  ...post,
+                  likesCount:
+                    updated.likesCount,
+                }
+              : post
+          )
+        );
+      }
+    );
+
+    return () => {
+      socket.off('newPost');
+
+      socket.off('deletePost');
+
+      socket.off('updateLike');
+    };
   }, []);
+
+  // crear post
+  const handleCreatePost =
+    async (data: any) => {
+      try {
+        if (!token) return;
+
+        await createPost(data, token);
+      } catch (error) {
+        console.log(error);
+      }
+    };
+
+  // like
+  const handleLike = async (
+    postId: string
+  ) => {
+    try {
+      if (!token) return;
+
+      await toggleLike(postId, token);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  // eliminar
+  const handleDelete = (
+    postId: string
+  ) => {
+    Alert.alert(
+      'Eliminar publicación',
+      '¿Seguro que deseas eliminar esta publicación?',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+
+        {
+          text: 'Eliminar',
+
+          style: 'destructive',
+
+          onPress: async () => {
+            try {
+              if (!token) return;
+
+              await deletePost(
+                postId,
+                token
+              );
+            } catch (error) {
+              console.log(error);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>feed</Text>
+      <FlatList
+        data={posts}
+        keyExtractor={item => item._id}
+        renderItem={({ item }) => (
+          <PostCard
+            post={item}
+            onLike={handleLike}
+            onDelete={handleDelete}
+          />
+        )}
+        contentContainerStyle={{
+          padding: 16,
+          paddingBottom: 120,
+        }}
+        showsVerticalScrollIndicator={
+          false
+        }
+      />
+
+      {/* botón flotante */}
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() =>
+          setModalVisible(true)
+        }
+      >
+        <Text style={styles.fabText}>
+          +
+        </Text>
+      </TouchableOpacity>
+
+      {/* modal crear post */}
+      <CreatePostModal
+        visible={modalVisible}
+        onClose={() =>
+          setModalVisible(false)
+        }
+        onSubmit={handleCreatePost}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 20, color: '#111' },
+  container: {
+    flex: 1,
+    backgroundColor: '#121212',
+  },
+
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+
+    width: 64,
+    height: 64,
+
+    borderRadius: 999,
+
+    backgroundColor: '#4DA6FF',
+
+    justifyContent: 'center',
+    alignItems: 'center',
+
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+
+  fabText: {
+    color: '#fff',
+    fontSize: 30,
+    fontWeight: '700',
+    marginTop: -2,
+  },
 });
