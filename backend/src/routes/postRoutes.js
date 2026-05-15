@@ -11,35 +11,34 @@ const {
   '../controllers/postController'
 );
 
-const authMiddleware = require(
-  '../middlewares/authMiddleware'
-);
+// use session-based auth middleware (validates token stored in AuthSession)
+const { requireAuth } = require('../middlewares/auth');
 
 // obtener feed
 router.get(
   '/',
-  authMiddleware,
+  requireAuth,
   getPosts
 );
 
 // crear publicación
 router.post(
   '/',
-  authMiddleware,
+  requireAuth,
   createPost
 );
 
 // dar like
 router.post(
   '/:id/like',
-  authMiddleware,
+  requireAuth,
   toggleLike
 );
 
 // eliminar publicación
 router.delete(
   '/:id',
-  authMiddleware,
+  requireAuth,
   deletePost
 );
 

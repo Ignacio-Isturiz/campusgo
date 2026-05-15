@@ -2,10 +2,11 @@ const Post = require('../models/Post');
 
 exports.getPosts = async (req, res) => {
   try {
+    // Include user's displayName and username so frontend can show proper author info
     const posts = await Post.find()
       .populate(
         'userId',
-        'email photoUrl'
+        'email photoUrl displayName username'
       )
       .sort({ createdAt: -1 });
 
@@ -23,20 +24,45 @@ exports.createPost = async (
   res
 ) => {
   try {
-    const { text, imageUrl } =
-      req.body;
+    const { text, imageUrl, base64, fileName } = req.body;
 
-    const post = await Post.create({
+    let finalImageUrl = imageUrl || null;
+
+    // if client uploaded base64 image, save it to GridFS (MongoDB)
+    if (base64 && fileName) {
+      try {
+        const { uploadBase64 } = require('../utils/gridfs');
+
+        let contentType = 'image/jpeg';
+        if (fileName.toLowerCase().endsWith('.png')) contentType = 'image/png';
+
+        const fileId = await uploadBase64(base64, fileName, contentType);
+
+        finalImageUrl = `${req.protocol}://${req.get('host')}/api/files/${fileId}`;
+
+        // also keep the fileId for more robust references
+        req._uploadedFileId = fileId;
+      } catch (err) {
+        console.error('Error saving post image to GridFS:', err);
+        return res.status(400).json({ message: 'Formato de imagen inválido' });
+      }
+    }
+
+    const postData = {
       userId: req.user.id,
       text,
-      imageUrl,
-    });
+      imageUrl: finalImageUrl,
+    };
+
+    if (req._uploadedFileId) postData.imageFileId = req._uploadedFileId;
+
+    const post = await Post.create(postData);
 
     const populatedPost =
       await Post.findById(post._id)
         .populate(
           'userId',
-          'email photoUrl'
+          'email photoUrl displayName username'
         );
 
     req.io.emit(
@@ -134,17 +160,12 @@ exports.deletePost = async (
         });
     }
 
+    // delete the post completely from the database
     await post.deleteOne();
 
-    req.io.emit(
-      'deletePost',
-      post._id
-    );
+    req.io.emit('deletePost', post._id);
 
-    res.json({
-      message:
-        'Post eliminado',
-    });
+    res.json({ message: 'Post eliminado' });
   } catch (error) {
     res.status(500).json({
       message:

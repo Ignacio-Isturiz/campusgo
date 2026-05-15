@@ -23,6 +23,11 @@ const postSchema =
         default: null,
       },
 
+      imageFileId: {
+        type: mongoose.Schema.Types.ObjectId,
+        default: null,
+      },
+
       likes: [
         {
           type:
@@ -32,6 +37,16 @@ const postSchema =
           ref: 'User',
         },
       ],
+          // soft-delete flag: when true the post is hidden from feeds
+          deleted: {
+            type: Boolean,
+            default: false,
+          },
+
+          deletedAt: {
+            type: Date,
+            default: null,
+          },
     },
     {
       timestamps: true,

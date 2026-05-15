@@ -50,6 +50,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    photoFileId: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null,
+    },
   },
   {
     timestamps: true,

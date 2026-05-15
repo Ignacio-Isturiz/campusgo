@@ -16,31 +16,23 @@ async function updateProfilePhoto(req, res) {
     if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
 
     if (base64 && fileName) {
-      // decode base64 and write file to public/uploads
-      const uploadsDir = path.join(__dirname, '..', '..', 'public', 'uploads');
-      if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+      // upload to GridFS and store reference
+      const { uploadBase64 } = require('../utils/gridfs');
 
-      // Extract base64 data if it comes with data URL prefix
-      let base64Data = base64;
-      if (base64.includes(',')) {
-        base64Data = base64.split(',')[1];
-      }
+      let contentType = 'image/jpeg';
+      if (fileName.toLowerCase().endsWith('.png')) contentType = 'image/png';
 
-      // sanitize filename
-      const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const filePath = path.join(uploadsDir, safeName);
-      
+      let fileId;
       try {
-        const buffer = Buffer.from(base64Data, 'base64');
-        fs.writeFileSync(filePath, buffer);
-      } catch (bufferError) {
-        console.error('Error creating buffer from base64:', bufferError);
+        fileId = await uploadBase64(base64, fileName, contentType);
+      } catch (err) {
+        console.error('Error saving profile image to GridFS:', err);
         return res.status(400).json({ message: 'Formato de imagen inválido' });
       }
 
-      // build public URL
-      const publicUrl = `${req.protocol}://${req.get('host')}/uploads/${safeName}`;
+      const publicUrl = `${req.protocol}://${req.get('host')}/api/files/${fileId}`;
       user.photoUrl = publicUrl;
+      user.photoFileId = fileId;
     } else if (photoUrl) {
       // legacy: accept a direct URL
       user.photoUrl = photoUrl;
