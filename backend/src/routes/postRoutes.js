@@ -1,0 +1,45 @@
+const express = require('express');
+
+const router = express.Router();
+
+const {
+  getPosts,
+  createPost,
+  toggleLike,
+  deletePost,
+} = require(
+  '../controllers/postController'
+);
+
+// use session-based auth middleware (validates token stored in AuthSession)
+const { requireAuth } = require('../middlewares/auth');
+
+// obtener feed
+router.get(
+  '/',
+  requireAuth,
+  getPosts
+);
+
+// crear publicación
+router.post(
+  '/',
+  requireAuth,
+  createPost
+);
+
+// dar like
+router.post(
+  '/:id/like',
+  requireAuth,
+  toggleLike
+);
+
+// eliminar publicación
+router.delete(
+  '/:id',
+  requireAuth,
+  deletePost
+);
+
+module.exports = router;

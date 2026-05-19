@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { getUser, saveUser, getPhoto, savePhoto } from '@/src/utils/storage';
 import { getToken as getUserToken } from '@/src/utils/storage';
@@ -66,28 +67,31 @@ export default function InfoScreen() {
   // Load persisted user and ensure fields are not editable
   const [photo, setPhoto] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadData() {
-      const user = await getUser();
-      const savedPhoto = await getPhoto();
-      
-      if (user && user.email) {
-        const suggestedName = parseNameFromEmail(user.email);
-        setForm(prev => ({ 
-          ...prev, 
-          email: user.email,
-          name: prev.name === 'Juan David Pérez' ? (suggestedName || prev.name) : prev.name 
-        }));
-      }
-      
-      if (savedPhoto && !savedPhoto.startsWith('blob:')) {
-        setPhoto(savedPhoto);
-      } else {
-        setPhoto(null);
-      }
+  const loadData = async () => {
+    const user = await getUser();
+    const savedPhoto = await getPhoto();
+
+    if (user && user.email) {
+      const suggestedName = parseNameFromEmail(user.email);
+      setForm((prev) => ({
+        ...prev,
+        email: user.email,
+        name: prev.name === 'Juan David Pérez' ? (suggestedName || prev.name) : prev.name,
+      }));
     }
-    loadData();
-  }, []);
+
+    if (savedPhoto && !savedPhoto.startsWith('blob:')) {
+      setPhoto(savedPhoto);
+    } else {
+      setPhoto(null);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, []),
+  );
 
   const handlePickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({

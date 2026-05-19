@@ -43,6 +43,9 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": false
+    },
+    "extra": {
+      "anthropicApiKey": "YOUR_ANTHROPIC_API_KEY_HERE"
     }
   }
 }

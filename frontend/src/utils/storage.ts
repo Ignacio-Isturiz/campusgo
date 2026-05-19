@@ -94,14 +94,34 @@ export async function getUser(): Promise<any | null> {
  * Guarda la URI de la foto de perfil.
  */
 export async function savePhoto(uri: string): Promise<void> {
-  // Only persist remote HTTP(S) URLs. Do not persist blob: URLs (temporary).
   if (!uri) return;
-  if (uri.startsWith('blob:')) {
-    // do not persist blob URIs as they are temporary
+
+  if (Platform.OS === 'web') {
+    if (uri.startsWith('blob:')) {
+      // Convert temporary blob URIs into a stable data URL so the image
+      // persists across reloads in web browsers.
+      try {
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        localStorage.setItem(PHOTO_KEY, dataUrl);
+      } catch (error) {
+        console.warn('Could not persist blob URI photo as data URL:', error);
+      }
+      return;
+    }
+
+    localStorage.setItem(PHOTO_KEY, uri);
     return;
   }
-  if (Platform.OS === 'web') {
-    localStorage.setItem(PHOTO_KEY, uri);
+
+  if (uri.startsWith('blob:')) {
+    // do not persist blob URIs on native because they are temporary
     return;
   }
   await SecureStore.setItemAsync(PHOTO_KEY, uri);
@@ -162,24 +182,26 @@ export async function clearAll(): Promise<void> {
  * Cierra la sesión completa reutilizando la limpieza centralizada.
  */
 export async function signOut(): Promise<void> {
-  // Also call backend logout if available (best-effort)
+  const token = await getToken();
+
+  // Clear local session immediately so logout is fast and navigation can happen.
+  await clearAll();
+
+  // Also call backend logout if available, but do not block the UX.
+  if (!token) return;
+
   try {
-    const token = await getToken();
-    if (token) {
-      const API_URL = (process.env.EXPO_PUBLIC_API_URL as any) || 'http://localhost:5000';
-      await fetch(`${API_URL}/auth/logout`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      });
-    }
+    const API_URL = (process.env.EXPO_PUBLIC_API_URL as any) || 'http://localhost:5000';
+    await fetch(`${API_URL}/auth/logout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
   } catch (e) {
     // ignore errors
   }
-
-  await clearAll();
 }
 
 // backward-compat alias

@@ -2,6 +2,23 @@
 
 This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
 
+## Configuration
+
+### Anthropic API Key Setup
+
+To use the AI-powered schedule image analysis feature in the Horario screen, you need to configure an Anthropic API key:
+
+1. Get an API key from [Anthropic](https://console.anthropic.com/)
+2. Set the API key in your environment:
+   - Create a `.env` file in the frontend directory
+   - Add: `EXPO_PUBLIC_ANTHROPIC_API_KEY=your_api_key_here`
+3. Or update `app.json`:
+   ```json
+   "extra": {
+     "anthropicApiKey": "your_api_key_here"
+   }
+   ```
+
 ## Get started
 
 1. Install dependencies
