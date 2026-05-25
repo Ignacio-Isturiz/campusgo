@@ -39,15 +39,15 @@ function parseNameFromEmail(email: string): string {
   }
 }
 
-const InputField = ({ label, value, onChangeText, placeholder, multiline = false }: any) => (
+const InputField = ({ label, value, onChangeText, placeholder, multiline = false, editable = false }: any) => (
   <View style={styles.fieldBlock}>
     <Text style={styles.label}>{label}</Text>
     <TextInput
       style={[styles.input, multiline && styles.textArea]}
       value={value}
       onChangeText={onChangeText}
-      editable={false}
-      selectTextOnFocus={false}
+      editable={editable}
+      selectTextOnFocus={editable}
       placeholder={placeholder}
       multiline={multiline}
       placeholderTextColor="#999"
@@ -63,6 +63,7 @@ export default function InfoScreen() {
     program: 'Ingeniería de Sistemas',
     semester: '6° semestre',
     description: 'Apasionado por la tecnología y el desarrollo de software.',
+    phone: '',
   });
   // Load persisted user and ensure fields are not editable
   const [photo, setPhoto] = useState<string | null>(null);
@@ -77,6 +78,7 @@ export default function InfoScreen() {
         ...prev,
         email: user.email,
         name: prev.name === 'Juan David Pérez' ? (suggestedName || prev.name) : prev.name,
+        phone: user.phone || '',
       }));
     }
 
@@ -170,7 +172,37 @@ export default function InfoScreen() {
     try {
       const stored = await getUser();
       const merged = stored ? { ...stored, ...form } : { ...form };
-      await saveUser(merged);
+
+      // send phone/displayName to backend if logged in
+      try {
+        const token = await getUserToken();
+        if (token) {
+          const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
+          const r = await fetch(`${API_URL}/auth/profile`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ displayName: merged.name, phone: merged.phone }),
+          });
+
+          if (r.ok) {
+            const data = await r.json();
+            if (data.user) {
+              await saveUser(data.user);
+            } else {
+              await saveUser(merged);
+            }
+          } else {
+            await saveUser(merged);
+          }
+        } else {
+          await saveUser(merged);
+        }
+      } catch (e) {
+        await saveUser(merged);
+      }
     } catch (e) {
       // fallback: save form only
       await saveUser(form);
@@ -223,6 +255,13 @@ export default function InfoScreen() {
               value={form.program}
               onChangeText={(text: string) => setForm({ ...form, program: text })}
               placeholder="Ej. Ingeniería de Sistemas"
+            />
+            <InputField
+              label="Teléfono"
+              value={form.phone}
+              onChangeText={(text: string) => setForm({ ...form, phone: text })}
+              placeholder="Ej. +573001234567"
+              editable
             />
             <InputField
               label="Semestre"

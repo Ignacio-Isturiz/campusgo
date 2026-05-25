@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Animated, Dimensions, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
-import { getLastRoute } from '@/src/utils/storage';
+import { getLastRoute, getToken } from '@/src/utils/storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
@@ -49,6 +49,14 @@ export default function LoadingScreen() {
         useNativeDriver: true,
       }).start(async () => {
         const last = await getLastRoute();
+
+        // If there's no valid token, force the auth screen
+        const token = await getToken();
+        if (!token) {
+          router.replace('/');
+          return;
+        }
+
         if (last && last !== '/(tabs)' && last !== '/(tabs)/index') {
           router.replace(last);
         } else {

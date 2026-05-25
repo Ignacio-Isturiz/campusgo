@@ -25,13 +25,19 @@ export default function CreatePostModal({
   onSubmit,
 }: Props) {
   const [text, setText] = useState('');
+  const [title, setTitle] = useState<string | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [previewAspectRatio, setPreviewAspectRatio] = useState<number | null>(null);
+  const [price, setPrice] = useState<string | null>(null);
+  const [isMarketplace, setIsMarketplace] = useState<boolean>(false);
 
   const handleSubmit = () => {
     const payload: any = { text };
+    if (title && title.trim().length > 0) payload.title = title.trim();
+    if (price && price.trim().length > 0) payload.price = price.trim();
+    if (isMarketplace) payload.isMarketplace = true;
     if (imageBase64) {
       payload.base64 = imageBase64;
       payload.fileName = fileName || `post_${Date.now()}.jpg`;
@@ -40,6 +46,7 @@ export default function CreatePostModal({
 
     // reset and close
     setText('');
+    setTitle(null);
     setImageUri(null);
     setImageBase64(null);
     onClose();
@@ -132,12 +139,12 @@ export default function CreatePostModal({
 
           <TouchableOpacity
             onPress={handleSubmit}
-            disabled={!(text.trim().length > 0 || imageBase64)}
+              disabled={!(text.trim().length > 0 || imageBase64 || (price && price.trim().length > 0))}
           >
             <Text
               style={[
                 styles.headerAction,
-                !(text.trim().length > 0 || imageBase64) && { opacity: 0.4 },
+                  !(text.trim().length > 0 || imageBase64 || (price && price.trim().length > 0)) && { opacity: 0.4 },
               ]}
             >
               Publicar
@@ -153,6 +160,29 @@ export default function CreatePostModal({
           onChangeText={setText}
           style={[styles.input, styles.inputPanel]}
         />
+
+        <TextInput
+          placeholder="Título del producto (opcional)"
+          placeholderTextColor="#666"
+          value={title || ''}
+          onChangeText={setTitle}
+          style={[styles.input, { marginTop: 8, height: 44 }]}
+        />
+
+        <TextInput
+          placeholder="Precio (opcional)"
+          placeholderTextColor="#666"
+          value={price || ''}
+          onChangeText={setPrice}
+          keyboardType="default"
+          style={[styles.input, { marginTop: 8, height: 44 }]}
+        />
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+          <TouchableOpacity onPress={() => setIsMarketplace(!isMarketplace)} style={{ marginRight: 8 }}>
+            <Text style={{ color: isMarketplace ? '#4DA6FF' : '#666', fontWeight: '600' }}>{isMarketplace ? 'Vender en Marketplace' : 'No marcar como venta'}</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.toolbar}>
           <TouchableOpacity onPress={handlePickImage} style={styles.iconBtn} accessibilityLabel="Adjuntar imagen o video">

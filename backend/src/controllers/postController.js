@@ -6,7 +6,7 @@ exports.getPosts = async (req, res) => {
     const posts = await Post.find()
       .populate(
         'userId',
-        'email photoUrl displayName username'
+        'email photoUrl displayName username phone'
       )
       .sort({ createdAt: -1 });
 
@@ -24,7 +24,7 @@ exports.createPost = async (
   res
 ) => {
   try {
-    const { text, imageUrl, base64, fileName } = req.body;
+    const { text, title, imageUrl, base64, fileName, price, isMarketplace } = req.body;
 
     let finalImageUrl = imageUrl || null;
 
@@ -60,7 +60,10 @@ exports.createPost = async (
     const postData = {
       userId: req.user.id,
       text,
+      title: title || null,
       imageUrl: finalImageUrl,
+      price: price || null,
+      isMarketplace: !!isMarketplace,
     };
 
     if (req._uploadedFileId) postData.imageFileId = req._uploadedFileId;
@@ -72,7 +75,7 @@ exports.createPost = async (
       await Post.findById(post._id)
         .populate(
           'userId',
-          'email photoUrl displayName username'
+          'email photoUrl displayName username phone'
         );
 
     req.io.emit(

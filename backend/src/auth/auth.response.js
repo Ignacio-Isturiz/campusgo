@@ -4,6 +4,8 @@ function toUserPayload(user) {
     email: user.email,
     role: user.role,
     photoUrl: user.photoUrl || null,
+    phone: user.phone || null,
+    displayName: user.displayName || null,
   };
 }
 

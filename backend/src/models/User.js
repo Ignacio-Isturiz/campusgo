@@ -54,6 +54,10 @@ const userSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       default: null,
     },
+    phone: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true,
