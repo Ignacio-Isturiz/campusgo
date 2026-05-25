@@ -30,9 +30,17 @@ async function updateProfilePhoto(req, res) {
         return res.status(400).json({ message: 'Formato de imagen inválido' });
       }
 
-      const publicUrl = `${req.protocol}://${req.get('host')}/api/files/${fileId}`;
-      user.photoUrl = publicUrl;
-      user.photoFileId = fileId;
+      if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY) {
+        const { uploadBase64ToCloudinary } = require('../services/cloudinary');
+        const uploadRes = await uploadBase64ToCloudinary(base64, fileName);
+        user.photoUrl = uploadRes.url;
+        user.photoCloudinaryId = uploadRes.public_id;
+      } else {
+        const configuredBase = process.env.APP_BASE_URL || `${req.protocol}://${req.get('host')}`;
+        const publicUrl = `${configuredBase}/api/files/${fileId}`;
+        user.photoUrl = publicUrl;
+        user.photoFileId = fileId;
+      }
     } else if (photoUrl) {
       // legacy: accept a direct URL
       user.photoUrl = photoUrl;

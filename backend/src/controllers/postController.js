@@ -28,22 +28,31 @@ exports.createPost = async (
 
     let finalImageUrl = imageUrl || null;
 
-    // if client uploaded base64 image, save it to GridFS (MongoDB)
+    // if client uploaded base64 image, try Cloudinary first, else save to GridFS
     if (base64 && fileName) {
       try {
-        const { uploadBase64 } = require('../utils/gridfs');
+        // prefer Cloudinary when configured
+        if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY) {
+          const { uploadBase64ToCloudinary } = require('../services/cloudinary');
+          const uploadRes = await uploadBase64ToCloudinary(base64, fileName);
+          finalImageUrl = uploadRes.url;
+          req._uploadedFileCloudinaryId = uploadRes.public_id;
+        } else {
+          const { uploadBase64 } = require('../utils/gridfs');
 
-        let contentType = 'image/jpeg';
-        if (fileName.toLowerCase().endsWith('.png')) contentType = 'image/png';
+          let contentType = 'image/jpeg';
+          if (fileName.toLowerCase().endsWith('.png')) contentType = 'image/png';
 
-        const fileId = await uploadBase64(base64, fileName, contentType);
+          const fileId = await uploadBase64(base64, fileName, contentType);
 
-        finalImageUrl = `${req.protocol}://${req.get('host')}/api/files/${fileId}`;
+          const configuredBase = process.env.APP_BASE_URL || `${req.protocol}://${req.get('host')}`;
+          finalImageUrl = `${configuredBase}/api/files/${fileId}`;
 
-        // also keep the fileId for more robust references
-        req._uploadedFileId = fileId;
+          // also keep the fileId for more robust references
+          req._uploadedFileId = fileId;
+        }
       } catch (err) {
-        console.error('Error saving post image to GridFS:', err);
+        console.error('Error saving post image:', err);
         return res.status(400).json({ message: 'Formato de imagen inválido' });
       }
     }
@@ -55,6 +64,7 @@ exports.createPost = async (
     };
 
     if (req._uploadedFileId) postData.imageFileId = req._uploadedFileId;
+    if (req._uploadedFileCloudinaryId) postData.imageCloudinaryId = req._uploadedFileCloudinaryId;
 
     const post = await Post.create(postData);
 
