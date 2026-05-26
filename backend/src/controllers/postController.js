@@ -19,6 +19,19 @@ exports.getPosts = async (req, res) => {
   }
 };
 
+// obtener solo publicaciones marcadas como marketplace
+exports.getMarketplacePosts = async (req, res) => {
+  try {
+    const posts = await Post.find({ isMarketplace: true, deleted: { $ne: true } })
+      .populate('userId', 'email photoUrl displayName username phone')
+      .sort({ createdAt: -1 });
+
+    res.json(posts);
+  } catch (error) {
+    res.status(500).json({ message: 'Error obteniendo marketplace posts' });
+  }
+};
+
 exports.createPost = async (
   req,
   res
@@ -186,3 +199,5 @@ exports.deletePost = async (
     });
   }
 };
+
+module.exports = exports;

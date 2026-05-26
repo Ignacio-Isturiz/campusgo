@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Dimensions } from 'react-native';
 
 import {
   Modal,
@@ -9,6 +10,7 @@ import {
   StyleSheet,
   Image,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -17,13 +19,16 @@ type Props = {
   visible: boolean;
   onClose: () => void;
   onSubmit: (data: any) => void;
+  marketplaceOnly?: boolean;
 };
 
 export default function CreatePostModal({
   visible,
   onClose,
   onSubmit,
+  marketplaceOnly = false,
 }: Props) {
+  const windowHeight = Dimensions.get('window').height;
   const [text, setText] = useState('');
   const [title, setTitle] = useState<string | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -31,25 +36,42 @@ export default function CreatePostModal({
   const [fileName, setFileName] = useState<string | null>(null);
   const [previewAspectRatio, setPreviewAspectRatio] = useState<number | null>(null);
   const [price, setPrice] = useState<string | null>(null);
-  const [isMarketplace, setIsMarketplace] = useState<boolean>(false);
+  
 
-  const handleSubmit = () => {
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    // validation for marketplace mode
+    if (marketplaceOnly) {
+      if (!title || !title.trim() || !text || !text.trim() || !price || !price.trim()) return;
+      // ensure price is numeric
+      if (isNaN(Number(price))) return;
+    }
+
     const payload: any = { text };
     if (title && title.trim().length > 0) payload.title = title.trim();
-    if (price && price.trim().length > 0) payload.price = price.trim();
-    if (isMarketplace) payload.isMarketplace = true;
+    if (marketplaceOnly && price && price.trim().length > 0) payload.price = Number(price);
+    if (marketplaceOnly) payload.isMarketplace = true;
     if (imageBase64) {
       payload.base64 = imageBase64;
       payload.fileName = fileName || `post_${Date.now()}.jpg`;
     }
-    onSubmit(payload);
 
-    // reset and close
-    setText('');
-    setTitle(null);
-    setImageUri(null);
-    setImageBase64(null);
-    onClose();
+    try {
+      setSubmitting(true);
+      await onSubmit(payload);
+    } catch (e) {
+      console.warn('submit error', e);
+    } finally {
+      setSubmitting(false);
+      // reset and close
+      setText('');
+      setTitle(null);
+      setPrice(null);
+      setImageUri(null);
+      setImageBase64(null);
+      onClose();
+    }
   };
 
   const handleClose = () => {
@@ -130,59 +152,69 @@ export default function CreatePostModal({
     <Modal visible={visible} animationType="fade" transparent>
       <View style={styles.modalOverlay}>
         <View style={styles.modalPanel}>
-        <View style={styles.headerModal}>
+          <ScrollView contentContainerStyle={styles.modalContent}>
+            <View style={styles.headerModal}>
           <TouchableOpacity onPress={handleClose}>
             <Text style={styles.headerAction}>Cancelar</Text>
           </TouchableOpacity>
 
-          <Text style={styles.headerTitle}>Nuevo hilo</Text>
+          <Text style={styles.headerTitle}>{marketplaceOnly ? 'Nuevo producto' : 'Nuevo hilo'}</Text>
 
           <TouchableOpacity
             onPress={handleSubmit}
-              disabled={!(text.trim().length > 0 || imageBase64 || (price && price.trim().length > 0))}
+            disabled={submitting || (marketplaceOnly ? !(title && title.trim() && text && text.trim() && price && price.trim() && !isNaN(Number(price))) : !(text.trim().length > 0 || imageBase64))}
           >
             <Text
               style={[
                 styles.headerAction,
-                  !(text.trim().length > 0 || imageBase64 || (price && price.trim().length > 0)) && { opacity: 0.4 },
+                (submitting || (marketplaceOnly ? !(title && title.trim() && text && text.trim() && price && price.trim()) : !(text.trim().length > 0 || imageBase64 || (price && price.trim().length > 0)))) && { opacity: 0.4 },
               ]}
             >
-              Publicar
+              {submitting ? 'Publicando...' : 'Publicar'}
             </Text>
           </TouchableOpacity>
         </View>
 
-        <TextInput
-          placeholder="¿Qué novedades tienes?"
-          placeholderTextColor="#666"
-          multiline
-          value={text}
-          onChangeText={setText}
-          style={[styles.input, styles.inputPanel]}
-        />
+        {marketplaceOnly ? (
+          <>
+            <TextInput
+              placeholder="Título del producto"
+              placeholderTextColor="#666"
+              value={title || ''}
+              onChangeText={setTitle}
+              style={[styles.input, { marginTop: 8, height: 44 }]}
+            />
 
-        <TextInput
-          placeholder="Título del producto (opcional)"
-          placeholderTextColor="#666"
-          value={title || ''}
-          onChangeText={setTitle}
-          style={[styles.input, { marginTop: 8, height: 44 }]}
-        />
+            <TextInput
+              placeholder={'Descripción del producto'}
+              placeholderTextColor="#666"
+              multiline
+              value={text}
+              onChangeText={setText}
+              style={[styles.input, styles.inputPanel, { marginTop: 8 }]}
+            />
 
-        <TextInput
-          placeholder="Precio (opcional)"
-          placeholderTextColor="#666"
-          value={price || ''}
-          onChangeText={setPrice}
-          keyboardType="default"
-          style={[styles.input, { marginTop: 8, height: 44 }]}
-        />
-
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
-          <TouchableOpacity onPress={() => setIsMarketplace(!isMarketplace)} style={{ marginRight: 8 }}>
-            <Text style={{ color: isMarketplace ? '#4DA6FF' : '#666', fontWeight: '600' }}>{isMarketplace ? 'Vender en Marketplace' : 'No marcar como venta'}</Text>
-          </TouchableOpacity>
-        </View>
+            <TextInput
+              placeholder="Precio"
+              placeholderTextColor="#666"
+              value={price || ''}
+              onChangeText={(v) => setPrice(v.replace(/[^0-9.,]/g, ''))}
+              keyboardType={Platform.OS === 'ios' ? 'decimal-pad' : 'numeric'}
+              style={[styles.input, { marginTop: 8, height: 44 }]}
+            />
+          </>
+        ) : (
+          <>
+            <TextInput
+              placeholder={'¿Qué novedades tienes?'}
+              placeholderTextColor="#666"
+              multiline
+              value={text}
+              onChangeText={setText}
+              style={[styles.input, styles.inputPanel, { marginTop: 8 }]}
+            />
+          </>
+        )}
 
         <View style={styles.toolbar}>
           <TouchableOpacity onPress={handlePickImage} style={styles.iconBtn} accessibilityLabel="Adjuntar imagen o video">
@@ -190,23 +222,27 @@ export default function CreatePostModal({
           </TouchableOpacity>
         </View>
 
-        {imageUri && (
-          <View style={styles.preview}>
-            <Image
-              source={{ uri: imageUri }}
-              style={[
-                styles.previewImage,
-                previewAspectRatio ? { aspectRatio: previewAspectRatio } : { height: 320 },
-              ]}
-              resizeMode="cover"
-            />
-            <TouchableOpacity onPress={handleRemoveImage} style={styles.removeBtn}>
-              <Text style={styles.removeText}>Quitar</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+            {imageUri && (
+              <View style={styles.preview}>
+                <View style={styles.previewInner}>
+                  <Image
+                    source={{ uri: imageUri }}
+                    style={[
+                      styles.previewImage,
+                      { height: Math.min(windowHeight * 0.6, 720) },
+                    ]}
+                    resizeMode="contain"
+                  />
+
+                  <TouchableOpacity onPress={handleRemoveImage} style={styles.removeOverlayBtn} accessibilityLabel="Quitar imagen">
+                    <Text style={styles.removeOverlayText}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </ScrollView>
+        </View>
       </View>
-    </View>
   </Modal>
   );
 }
@@ -276,11 +312,21 @@ const styles = StyleSheet.create({
   preview: {
     marginTop: 12,
     alignItems: 'center',
+    width: '100%',
+    maxHeight: 360,
+    overflow: 'hidden',
+  },
+  previewInner: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
   },
 
   previewImage: {
     width: '100%',
     borderRadius: 12,
+    height: undefined,
   },
 
   removeBtn: {
@@ -289,6 +335,22 @@ const styles = StyleSheet.create({
 
   removeText: {
     color: '#ff6b6b',
+  },
+  removeOverlayBtn: {
+    position: 'absolute',
+    top: 8,
+    right: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  removeOverlayText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
   modalOverlay: {
     flex: 1,
@@ -304,7 +366,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 18,
-    maxHeight: '90%'
+    maxHeight: '90%',
+    overflow: 'hidden',
+  },
+
+  modalContent: {
+    paddingBottom: 20,
   },
 
   inputPanel: {

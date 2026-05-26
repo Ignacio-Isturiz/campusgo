@@ -205,7 +205,7 @@ export default function MiCuentaScreen() {
           <View style={styles.headerTop}>
             <View style={styles.brandContainer}>
               <Image 
-                source={require('@/assets/images/unaulalogo.png')} 
+                source={require('@/assets/images/ESCUDO-UNAULA.png')} 
                 style={styles.logoImage} 
               />
               <Text style={styles.brandText}>UNAULA</Text>

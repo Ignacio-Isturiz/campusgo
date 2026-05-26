@@ -10,8 +10,10 @@ import {
   Modal,
   Pressable,
   Platform,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useWindowDimensions } from 'react-native';
 import { getToken } from '@/src/utils/storage';
 import { deletePost as apiDeletePost } from '@/src/services/postService';
 
@@ -21,6 +23,7 @@ type Props = {
   onDelete?: (id: string) => void;
   onDeleteSuccess?: (id: string) => void;
   currentUserId?: string | null;
+  mode?: 'feed' | 'marketplace';
 };
 
 export default function PostCard({
@@ -29,6 +32,7 @@ export default function PostCard({
   onDelete,
   onDeleteSuccess,
   currentUserId,
+  mode,
 }: Props) {
   const [deleting, setDeleting] = useState(false);
   const [containerWidth, setContainerWidth] = useState<number | null>(null);
@@ -36,9 +40,31 @@ export default function PostCard({
   const [imageModalVisible, setImageModalVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const isWeb = Platform.OS === 'web';
+  const { width } = useWindowDimensions();
+  const isMobile = width < 680;
   const isAuthor =
     !!currentUserId &&
     (post.userId && (post.userId.id || post.userId._id || post.userId)) === currentUserId;
+
+  const handleContact = async () => {
+    const phone = post.userId?.phone;
+    if (!phone) return Alert.alert('Teléfono no disponible', 'El vendedor no ha agregado un número de contacto.');
+
+    const sanitized = phone.replace(/[^0-9]/g, '');
+    const text = encodeURIComponent('Hola, soy de Unaula y estoy interesado en tu producto!');
+    const url = `https://wa.me/${sanitized}?text=${text}`;
+
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('No se puede abrir WhatsApp', 'Tu dispositivo no puede abrir WhatsApp.');
+      }
+    } catch (e) {
+      Alert.alert('Error', 'No se pudo abrir WhatsApp');
+    }
+  };
 
   useEffect(() => {
     if (!post?.imageUrl || !containerWidth) {
@@ -65,7 +91,10 @@ export default function PostCard({
     }
   }, [post?.imageUrl, containerWidth]);
   return (
-    <View style={[styles.card, isWeb && styles.cardWeb]}>
+    <View style={[
+      styles.card,
+      isWeb ? styles.cardWeb : isMobile ? styles.cardMobile : {},
+    ]}>
       <View style={styles.header}>
         <Image
           source={{
@@ -156,15 +185,23 @@ export default function PostCard({
       )}
 
       <View style={styles.actions}>
-        <TouchableOpacity
-          onPress={() => onLike(post._id)}
-        >
-          <Text style={[styles.action, isWeb && styles.actionWeb]}>
-            ❤️ {post.likesCount}
-          </Text>
-        </TouchableOpacity>
-
-        {/* commenting is disabled in this phase */}
+        {/** show contact button for marketplace mode, otherwise like */}
+        {(mode === 'marketplace') ? (
+          <TouchableOpacity onPress={handleContact}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
+              <Text style={[styles.action, { marginLeft: 8 }]}>Contactar</Text>
+            </View>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            onPress={() => onLike(post._id)}
+          >
+            <Text style={[styles.action, isWeb && styles.actionWeb]}>
+              ❤️ {post.likesCount}
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {/* show delete only for the author of the post */}
         {isAuthor && (
@@ -231,10 +268,10 @@ export default function PostCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#1E1E1E',
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 14,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 18,
   },
 
   header: {
@@ -250,17 +287,17 @@ const styles = StyleSheet.create({
   },
 
   name: {
-    color: '#fff',
+    color: '#111827',
     fontWeight: '700',
   },
 
   username: {
-    color: '#999',
+    color: '#6b7280',
     marginTop: 2,
   },
 
   text: {
-    color: '#fff',
+    color: '#111827',
     marginTop: 12,
     lineHeight: 22,
   },
@@ -270,22 +307,29 @@ const styles = StyleSheet.create({
     height: 260,
     marginTop: 0,
     backgroundColor: '#111',
+    borderRadius: 12,
   },
 
   postImageWrapper: {
     marginTop: 12,
-    borderRadius: 14,
+    borderRadius: 16,
     overflow: 'hidden',
   },
 
   cardWeb: {
-    backgroundColor: '#1E1E1E',
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
+    backgroundColor: '#ffffff',
+    borderWidth: 0,
+    borderColor: '#eee',
     shadowColor: '#000',
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
     padding: 16,
+  },
+  cardMobile: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 14,
   },
 
   nameWeb: {

@@ -10,13 +10,15 @@ import {
   Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Colors } from '@/constants/theme';
 
-const colors = {
-  background: '#0a0a0a',
-  surface: '#121212',
-  primary: '#FFFFFF',
-  secondary: 'rgba(255, 255, 255, 0.7)',
-  muted: 'rgba(255, 255, 255, 0.4)',
+const defaultColors = {
+  background: '#fff',
+  surface: '#fff',
+  primary: '#111',
+  secondary: '#687076',
+  muted: 'rgba(0,0,0,0.4)',
   green: '#25D366',
 };
 
@@ -38,6 +40,16 @@ interface MarketplaceCardProps {
 export default function MarketplaceCard({ id, author, handle, avatar, imageUrl, caption, price, phone, authorId, currentUserId, onDeleteSuccess, title }: MarketplaceCardProps) {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
+  const colorScheme = useColorScheme() ?? 'light';
+  const theme = Colors[colorScheme] ?? defaultColors;
+  const colors = {
+    background: theme.background,
+    surface: theme.background,
+    primary: theme.text,
+    secondary: theme.icon,
+    muted: 'rgba(0,0,0,0.4)',
+    green: '#25D366',
+  };
 
   const handleContact = async () => {
     if (!phone) return Alert.alert('Teléfono no disponible', 'El vendedor no ha agregado un número de contacto.');
@@ -60,14 +72,31 @@ export default function MarketplaceCard({ id, author, handle, avatar, imageUrl, 
   };
 
   return (
-    <View style={[styles.card, { marginHorizontal: isMobile ? 0 : 16 }]}>
+    <View style={[styles.card, { marginHorizontal: isMobile ? 0 : 16, backgroundColor: colors.surface }]}>
       <View style={styles.header}>
         <Image source={{ uri: avatar }} style={styles.avatar} />
 
         <View style={{ flex: 1 }}>
-          <Text style={styles.name}>{author}</Text>
-          <Text style={styles.username}>{handle}</Text>
+          <Text style={[styles.name, { color: colors.primary }]}>{author}</Text>
+          <Text style={[styles.username, { color: colors.secondary }]}>{handle}</Text>
         </View>
+      </View>
+
+      {title ? (
+        <Text style={[styles.name, { marginTop: 10 }]}>{title}</Text>
+      ) : null}
+
+      {!!imageUrl && (
+        <View style={styles.postImageWrapper}>
+          <Image source={{ uri: imageUrl }} style={styles.postImage} resizeMode="cover" />
+        </View>
+      )}
+
+      <View style={styles.actions}>
+        <TouchableOpacity style={[styles.contactBtn, { backgroundColor: colors.green || '#25D366' }]} onPress={handleContact} activeOpacity={0.8}>
+          <Ionicons name="logo-whatsapp" size={18} color="#fff" />
+          <Text style={[styles.contactText, { color: '#fff' }]}>Contactar</Text>
+        </TouchableOpacity>
 
         {currentUserId && authorId && currentUserId === authorId ? (
           <TouchableOpacity onPress={async () => {
@@ -88,35 +117,16 @@ export default function MarketplaceCard({ id, author, handle, avatar, imageUrl, 
             } catch (e) {
               Alert.alert('Error', 'No se pudo eliminar el producto');
             }
-          }}>
+          }} style={{ marginLeft: 20 }}>
             <Ionicons name="trash-outline" size={20} color="#ff4d4d" />
           </TouchableOpacity>
         ) : null}
       </View>
 
-      {!!imageUrl && (
-        <View style={styles.postImageWrapper}>
-          <Image source={{ uri: imageUrl }} style={styles.postImage} resizeMode="cover" />
-        </View>
-      )}
-
-      {title ? (
-        <Text style={[styles.name, { marginTop: 10, marginHorizontal: 0 }]}>{title}</Text>
-      ) : null}
-
-      <View style={styles.actions}>
-        <View style={{ flex: 1 }} />
-
-        <TouchableOpacity style={[styles.contactBtn, { backgroundColor: '#25D366' }]} onPress={handleContact} activeOpacity={0.8}>
-          <Ionicons name="logo-whatsapp" size={18} color="#fff" />
-          <Text style={[styles.contactText, { color: '#fff', marginLeft: 8 }]}>Contactar</Text>
-        </TouchableOpacity>
-      </View>
-
-      {price ? <Text style={styles.priceText}>{price}</Text> : null}
+      {price ? <Text style={[styles.priceText, { marginTop: 10, color: colors.primary }]}>{price}</Text> : null}
 
       {!!caption && (
-        <Text style={styles.text}>{caption}</Text>
+        <Text style={[styles.text, { color: colors.primary }]}>{caption}</Text>
       )}
     </View>
   );
@@ -147,7 +157,12 @@ const styles = StyleSheet.create({
     color: '#999',
     marginTop: 2,
   },
-  imageContainer: { position: 'relative', backgroundColor: 'rgba(255,255,255,0.05)', overflow: 'hidden', aspectRatio: 1 },
+  actions: {
+    flexDirection: 'row',
+    marginTop: 12,
+    alignItems: 'center',
+    gap: 12,
+  },
   mainImage: { width: '100%', height: '100%' },
   imageOverlay: { ...StyleSheet.absoluteFillObject },
   actionBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },

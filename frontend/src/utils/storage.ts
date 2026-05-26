@@ -127,16 +127,42 @@ export async function savePhoto(uri: string): Promise<void> {
   await SecureStore.setItemAsync(PHOTO_KEY, uri);
 }
 
-export async function savePreferences(theme: 'light' | 'dark', instColor: string): Promise<void> {
-  const data = JSON.stringify({ theme, instColor });
+export async function savePreferences(theme: 'light' | 'dark'): Promise<void> {
+  const data = JSON.stringify({ theme });
   if (Platform.OS === 'web') {
     localStorage.setItem(PREF_THEME_KEY, data);
+    // notify listeners
+    try { notifyPreferencesChanged(); } catch (e) {}
     return;
   }
   await SecureStore.setItemAsync(PREF_THEME_KEY, data);
+  try { await notifyPreferencesChanged(); } catch (e) {}
 }
 
-export async function getPreferences(): Promise<{ theme: string; instColor: string } | null> {
+// Simple in-memory listeners to notify UI about preference changes at runtime.
+type PrefsListener = (prefs: { theme?: string; instColor?: string } | null) => void;
+const prefListeners: PrefsListener[] = [];
+
+export function addPreferencesListener(cb: PrefsListener) {
+  prefListeners.push(cb);
+  return () => {
+    const idx = prefListeners.indexOf(cb);
+    if (idx >= 0) prefListeners.splice(idx, 1);
+  };
+}
+
+async function notifyPreferencesChanged() {
+  const prefs = await getPreferences();
+  prefListeners.slice().forEach((cb) => {
+    try {
+      cb(prefs);
+    } catch (e) {
+      // ignore listener errors
+    }
+  });
+}
+
+export async function getPreferences(): Promise<{ theme?: string; instColor?: string } | null> {
   let data: string | null = null;
   if (Platform.OS === 'web') {
     data = localStorage.getItem(PREF_THEME_KEY);
