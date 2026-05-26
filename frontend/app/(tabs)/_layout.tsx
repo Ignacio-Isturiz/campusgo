@@ -15,38 +15,7 @@ const SCREENS = [
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-  const { width } = useWindowDimensions();
-  // Determine if this is a desktop web layout based on initial dimensions.
-  // We freeze the decision on first render to avoid switching the navigator
-  // tree between renders (which breaks react-navigation's TabRouter).
-  const isDesktopRef = React.useRef<boolean>(Platform.OS === 'web' && width >= 900);
-  const isDesktopWeb = isDesktopRef.current;
-
-  if (isDesktopWeb) {
-    return (
-      <View style={[styles.webRoot, { backgroundColor: '#ffffff' }]}>
-        <View style={styles.sidebar}>
-          {SCREENS.slice().reverse().map((s) => (
-            <Link
-              key={s.name}
-              href={`/(tabs)/${s.name}`}
-              asChild
-            >
-              <Pressable style={styles.sideItem}>
-                <Ionicons name={s.icon as any} size={16} color="#111" />
-                <Text style={styles.sideText}>{s.title}</Text>
-              </Pressable>
-            </Link>
-          ))}
-        </View>
-        <View style={styles.content}>
-          <Slot />
-        </View>
-      </View>
-    );
-  }
-
-  // Mobile / native: use Tabs with bottom bar. We set row-reverse to match right-to-left visual order.
+  // Always use bottom Tabs for navigation (sidebar removed per design).
   return (
     <Tabs
       screenOptions={{

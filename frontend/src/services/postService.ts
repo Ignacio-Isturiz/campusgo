@@ -66,6 +66,14 @@ export function getFeed(token: string) {
   );
 }
 
+export function getMarketplace(token: string) {
+  return request(
+    '/api/posts/marketplace',
+    'GET',
+    token
+  );
+}
+
 export function createPost(
   data: any,
   token: string

@@ -10,9 +10,15 @@ import {
   TouchableOpacity,
   Text,
   Alert,
+  Image,
 } from 'react-native';
 
 import PostCard from '@/components/feed/PostCard';
+import { Ionicons } from '@expo/vector-icons';
+// BottomNavigation removed per user request
+import { Platform, useWindowDimensions } from 'react-native';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 import CreatePostModal from '@/components/feed/CreatePostModal';
 
@@ -29,6 +35,10 @@ import { getToken } from '@/src/utils/storage';
 import { getUser } from '@/src/utils/storage';
 
 export default function FeedScreen() {
+  const { width } = useWindowDimensions();
+  const isMobile = width < 680;
+  const colorScheme = useColorScheme() ?? 'light';
+  const theme = Colors[colorScheme] || Colors.light;
   const [posts, setPosts] = useState<any[]>(
     []
   );
@@ -38,6 +48,7 @@ export default function FeedScreen() {
 
   const [token, setToken] = useState('');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [userPhoto, setUserPhoto] = useState<string | null>(null);
 
   useEffect(() => {
     const initialize = async () => {
@@ -59,16 +70,16 @@ export default function FeedScreen() {
 
         // obtener usuario guardado para verificar permisos de delete
         const savedUser = await getUser();
-        if (savedUser && savedUser.id) {
-          setCurrentUserId(savedUser.id);
+        if (savedUser) {
+          if (savedUser.id) setCurrentUserId(savedUser.id);
+          const photo = savedUser.photoUrl || savedUser.photo || savedUser.avatar || null;
+          if (photo) setUserPhoto(photo);
         }
 
         // cargar feed
-        const data = await getFeed(
-          savedToken
-        );
-
-        setPosts(data);
+        const data = await getFeed(savedToken);
+        // exclude marketplace items from main feed so products only appear in Marketplace
+        setPosts(Array.isArray(data) ? data.filter((p: any) => !p.isMarketplace) : []);
       } catch (error) {
         console.log(error);
       }
@@ -78,6 +89,8 @@ export default function FeedScreen() {
 
     // sockets realtime
     socket.on('newPost', post => {
+      // ignore marketplace posts in regular feed
+      if (post && post.isMarketplace) return;
       setPosts(prev => [post, ...prev]);
     });
 
@@ -179,89 +192,77 @@ export default function FeedScreen() {
     );
   };
 
+  
+
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={posts}
-        keyExtractor={item => item._id}
-        renderItem={({ item }) => (
-          <View style={styles.postWrapper}>
-            <View style={styles.postInner}>
-              <PostCard
-                post={item}
-                onLike={handleLike}
-                onDelete={handleDelete}
-                onDeleteSuccess={handleDeleteSuccess}
-                currentUserId={currentUserId}
-              />
-            </View>
+    <View style={styles.page}>
+
+      <View style={[styles.container, isMobile ? styles.containerMobile : {}, { backgroundColor: theme.background }]}>
+        <View style={styles.feedHeader}>
+          <Text style={[styles.feedTitle, { color: theme.text }]}>Feed</Text>
+          <View style={styles.headerRight}>
+            <TouchableOpacity style={styles.publishBtn} onPress={() => setModalVisible(true)}>
+              <Text style={styles.publishText}>+ Publicar</Text>
+            </TouchableOpacity>
           </View>
-        )}
-        contentContainerStyle={{
-          padding: 16,
-          paddingBottom: 120,
-        }}
-        showsVerticalScrollIndicator={
-          false
-        }
-      />
+        </View>
 
-      {/* botón flotante */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() =>
-          setModalVisible(true)
-        }
-      >
-        <Text style={styles.fabText}>
-          +
-        </Text>
-      </TouchableOpacity>
+        {/* Quick composer row - alternate way to open create modal */}
+        <TouchableOpacity style={[styles.composeRow, { backgroundColor: colorScheme === 'dark' ? '#141516' : '#ffffff', borderColor: colorScheme === 'dark' ? '#222' : '#eee' }]} activeOpacity={0.7} onPress={() => setModalVisible(true)}>
+          {userPhoto ? (
+            <Image source={{ uri: userPhoto }} style={styles.composeAvatar} />
+          ) : (
+            <Ionicons name="person-circle" size={36} color="#888" />
+          )}
+          <Text style={[styles.composePlaceholder, { color: theme.icon }]}>¿Qué quieres compartir hoy?</Text>
+        </TouchableOpacity>
 
-      {/* modal crear post */}
-      <CreatePostModal
-        visible={modalVisible}
-        onClose={() =>
-          setModalVisible(false)
-        }
-        onSubmit={handleCreatePost}
-      />
+        <FlatList
+          data={posts}
+          keyExtractor={item => item._id}
+          renderItem={({ item }) => (
+            <View style={styles.postWrapper}>
+              <View style={[styles.postInner, isMobile ? styles.postInnerMobile : {}]}>
+                <PostCard
+                  post={item}
+                  onLike={handleLike}
+                  onDelete={handleDelete}
+                  onDeleteSuccess={handleDeleteSuccess}
+                  currentUserId={currentUserId}
+                />
+              </View>
+            </View>
+          )}
+            contentContainerStyle={{
+              padding: 16,
+              paddingBottom: 120,
+            }}
+          showsVerticalScrollIndicator={false}
+        />
+
+        <CreatePostModal
+          visible={modalVisible}
+          onClose={() => setModalVisible(false)}
+          onSubmit={handleCreatePost}
+        />
+
+        {/* FAB removed per request */}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#121212',
-  },
+  page: { flexDirection: 'row', width: '100%', height: '100%' },
+  sidebarContainer: { display: 'none' as any /* show via web-specific styles if needed */ },
+  container: { flex: 1 },
 
   fab: {
-    position: 'absolute',
-    bottom: 24,
-    right: 24,
-
-    width: 64,
-    height: 64,
-
-    borderRadius: 999,
-
-    backgroundColor: '#4DA6FF',
-
-    justifyContent: 'center',
-    alignItems: 'center',
-
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 6,
+    // removed
   },
 
   fabText: {
-    color: '#fff',
-    fontSize: 30,
-    fontWeight: '700',
-    marginTop: -2,
+    // removed
   },
   postWrapper: {
     width: '100%',
@@ -270,6 +271,33 @@ const styles = StyleSheet.create({
 
   postInner: {
     width: '100%',
-    maxWidth: 640,
+    maxWidth: 840,
+  },
+  feedHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
+  feedTitle: { fontSize: 20, fontWeight: '700', color: '#111' },
+  headerRight: { flexDirection: 'row', alignItems: 'center' },
+  publishBtn: { backgroundColor: '#ff7a00', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8 },
+  publishText: { color: '#fff', fontWeight: '700' },
+  containerMobile: { paddingHorizontal: 8 },
+  postInnerMobile: { maxWidth: '100%', paddingHorizontal: 8 },
+  composeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginHorizontal: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+  },
+  composeAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#ddd',
+  },
+  composePlaceholder: {
+    marginLeft: 10,
+    fontSize: 15,
   },
 });

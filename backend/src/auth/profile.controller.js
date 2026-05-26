@@ -5,7 +5,41 @@ const path = require('path');
 async function getProfile(req, res) {
   const user = await User.findById(req.user._id).select('-passwordHash');
   if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
-  return res.json({ user });
+  // return sanitized payload
+  return res.json({ user: {
+    id: String(user._id),
+    email: user.email,
+    role: user.role,
+    photoUrl: user.photoUrl || null,
+    phone: user.phone || null,
+    displayName: user.displayName || null,
+  } });
+}
+
+async function updateProfile(req, res) {
+  try {
+    const { displayName, phone } = req.body;
+
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+
+    if (typeof displayName === 'string') user.displayName = displayName;
+    if (typeof phone === 'string') user.phone = phone;
+
+    await user.save();
+
+    return res.json({ message: 'Perfil actualizado', user: {
+      id: String(user._id),
+      email: user.email,
+      role: user.role,
+      photoUrl: user.photoUrl || null,
+      phone: user.phone || null,
+      displayName: user.displayName || null,
+    } });
+  } catch (error) {
+    console.error('updateProfile error', error);
+    return res.status(500).json({ message: 'Error interno' });
+  }
 }
 
 async function updateProfilePhoto(req, res) {
@@ -68,4 +102,5 @@ async function updateProfilePhoto(req, res) {
 module.exports = {
   getProfile,
   updateProfilePhoto,
+  updateProfile,
 };

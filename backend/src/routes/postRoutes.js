@@ -7,6 +7,7 @@ const {
   createPost,
   toggleLike,
   deletePost,
+  getMarketplacePosts,
 } = require(
   '../controllers/postController'
 );
@@ -19,6 +20,13 @@ router.get(
   '/',
   requireAuth,
   getPosts
+);
+
+// obtener marketplace
+router.get(
+  '/marketplace',
+  requireAuth,
+  getMarketplacePosts
 );
 
 // crear publicación

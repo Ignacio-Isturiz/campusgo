@@ -17,6 +17,11 @@ const postSchema =
         type: String,
         default: '',
       },
+      // optional product title for marketplace items
+      title: {
+        type: String,
+        default: null,
+      },
 
       imageUrl: {
         type: String,
@@ -26,6 +31,23 @@ const postSchema =
       imageFileId: {
         type: mongoose.Schema.Types.ObjectId,
         default: null,
+      },
+      
+      // Cloudinary public id (if uploaded to Cloudinary)
+      imageCloudinaryId: {
+        type: String,
+        default: null,
+      },
+
+      // Marketplace related fields
+      price: {
+        type: String,
+        default: null,
+      },
+
+      isMarketplace: {
+        type: Boolean,
+        default: false,
       },
 
       likes: [

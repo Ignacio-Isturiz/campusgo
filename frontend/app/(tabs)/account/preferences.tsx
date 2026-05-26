@@ -5,7 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
+  
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -15,17 +15,13 @@ import { accountPalette } from '@/src/components/account/AccountStyles';
 export default function PreferencesScreen() {
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [language, setLanguage] = useState('Español');
-  const [instColor, setInstColor] = useState('#FF7A00');
   const [loaded, setLoaded] = useState(false);
-
-  const institutionalColors = ['#FF7A00', '#F24822', '#F8C548', '#1A1A1A'];
 
   useEffect(() => {
     (async () => {
       const prefs = await import('@/src/utils/storage').then((m) => m.getPreferences());
       if (prefs) {
-        setTheme(prefs.theme as any);
-        setInstColor(prefs.instColor || instColor);
+        if (prefs.theme) setTheme(prefs.theme as any);
       }
       setLoaded(true);
     })();
@@ -48,7 +44,10 @@ export default function PreferencesScreen() {
           <View style={styles.themeRow}>
             <TouchableOpacity
               style={[styles.themeBox, theme === 'light' && styles.themeBoxActive]}
-              onPress={() => setTheme('light')}
+              onPress={async () => {
+                setTheme('light');
+                await import('@/src/utils/storage').then((m) => m.savePreferences('light'));
+              }}
             >
               <Ionicons name="sunny-outline" size={24} color={theme === 'light' ? accountPalette.text : accountPalette.textMuted} />
               <Text style={[styles.themeLabel, theme === 'light' && styles.themeLabelActive]}>Claro</Text>
@@ -56,7 +55,10 @@ export default function PreferencesScreen() {
 
             <TouchableOpacity
               style={[styles.themeBox, theme === 'dark' && styles.themeBoxActive]}
-              onPress={() => setTheme('dark')}
+              onPress={async () => {
+                setTheme('dark');
+                await import('@/src/utils/storage').then((m) => m.savePreferences('dark'));
+              }}
             >
               <Ionicons name="moon-outline" size={24} color={theme === 'dark' ? accountPalette.text : accountPalette.textMuted} />
               <Text style={[styles.themeLabel, theme === 'dark' && styles.themeLabelActive]}>Oscuro</Text>
@@ -81,49 +83,10 @@ export default function PreferencesScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Color Institucional */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Color institucional</Text>
-          <Text style={styles.sectionSubtitle}>Personaliza la app con los colores de UNAULA</Text>
-          <View style={styles.colorRow}>
-            {institutionalColors.map((color) => (
-              <TouchableOpacity
-                key={color}
-                style={[
-                  styles.colorCircle,
-                  { backgroundColor: color },
-                  instColor === color && styles.colorCircleActive,
-                ]}
-                onPress={() => setInstColor(color)}
-                >
-                {instColor === color && (
-                  <Ionicons name="checkmark" size={16} color="#FFF" />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Card UNAULA */}
-        <View style={[styles.unaulaCard, { backgroundColor: instColor }]}>
-          <View style={styles.unaulaLogoBox}>
-            <Image 
-              source={require('@/assets/images/unaulalogo.png')} 
-              style={styles.unaulaLogoImage} 
-            />
-          </View>
-          <View>
-            <Text style={styles.unaulaCardTitle}>UNAULA</Text>
-            <Text style={styles.unaulaCardSubtitle}>Identidad, Educación y Futuro</Text>
-          </View>
-        </View>
-        <TouchableOpacity
-          style={[styles.savePrefsBtn]}
-          onPress={async () => {
-            await import('@/src/utils/storage').then((m) => m.savePreferences(theme, instColor));
-            // no reload here; theme is applied via global hook
-          }}
-        >
+        {/* Color institucional removed per request */}
+        <TouchableOpacity style={[styles.savePrefsBtn]} onPress={async () => {
+            await import('@/src/utils/storage').then((m) => m.savePreferences(theme));
+          }}>
           <Text style={styles.savePrefsText}>Guardar preferencias</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -238,51 +201,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: accountPalette.text,
   },
-  colorRow: {
-    flexDirection: 'row',
-    gap: 15,
-  },
-  colorCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  colorCircleActive: {
-    borderWidth: 3,
-    borderColor: 'rgba(0,0,0,0.1)',
-  },
-  unaulaCard: {
-    marginTop: 10,
-    padding: 25,
-    borderRadius: 30,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 20,
-  },
-  unaulaLogoBox: {
-    width: 50,
-    height: 50,
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  unaulaLogoImage: {
-    width: 32,
-    height: 32,
-  },
-  unaulaCardTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#FFF',
-    letterSpacing: 1,
-  },
-  unaulaCardSubtitle: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginTop: 2,
-  },
+  // Removed institutional color styles
 });

@@ -14,7 +14,7 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
-import { getUser, saveUser, signOut, savePhoto, getPhoto } from '@/src/utils/storage';
+import { getUser, saveUser, signOut, savePhoto, getPhoto, clearAll } from '@/src/utils/storage';
 import { accountPalette } from '@/src/components/account/AccountStyles';
 
 /**
@@ -134,11 +134,27 @@ export default function MiCuentaScreen() {
   };
 
   const handleLogout = async () => {
-    await signOut();
+    try {
+      await signOut();
+    } catch (e) {
+      console.warn('signOut failed', e);
+    }
+
+    // Ensure local session cleared and UI state reset
+    try {
+      await clearAll();
+    } catch (e) {
+      // ignore
+    }
+
+    setUser(null);
+    setPhoto(null);
+
     if (Platform.OS === 'web') {
       window.location.replace('/');
       return;
     }
+    // replace navigation stack to auth screen
     router.replace('/');
   };
 
@@ -189,7 +205,7 @@ export default function MiCuentaScreen() {
           <View style={styles.headerTop}>
             <View style={styles.brandContainer}>
               <Image 
-                source={require('@/assets/images/unaulalogo.png')} 
+                source={require('@/assets/images/ESCUDO-UNAULA.png')} 
                 style={styles.logoImage} 
               />
               <Text style={styles.brandText}>UNAULA</Text>

@@ -1,18 +1,18 @@
 import React from 'react';
 import { Platform, View, StyleSheet, Text, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Colors } from '@/constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { signOut } from '@/src/utils/storage';
 
-const colors = {
-  background: '#0a0a0a',
-  surface: '#121212',
-  primary: '#FFFFFF',
-  secondary: 'rgba(255, 255, 255, 0.7)',
-  muted: 'rgba(255, 255, 255, 0.4)',
+const colorDefaults = {
+  background: '#fff',
+  primary: '#111',
+  secondary: '#687076',
+  muted: 'rgba(0,0,0,0.4)',
   accent: '#FF1493',
-  secondary_accent: '#00D9FF',
 };
 
 /**
@@ -22,6 +22,15 @@ const colors = {
  */
 export default function FeedHeader() {
   const insets = useSafeAreaInsets();
+  const colorScheme = useColorScheme() ?? 'light';
+  const theme = Colors[colorScheme] ?? colorDefaults;
+  const colors = {
+    background: theme.background,
+    primary: theme.text,
+    secondary: theme.icon,
+    muted: 'rgba(0,0,0,0.4)',
+    accent: theme.tint,
+  };
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
 
@@ -35,7 +44,7 @@ export default function FeedHeader() {
   };
 
   return (
-    <View style={[styles.headerMinimal, { paddingTop: insets.top }]}>      
+    <View style={[styles.headerMinimal, { paddingTop: insets.top, backgroundColor: colors.background }]}>      
       <View style={styles.actionIconsMinimal}>
         <TouchableOpacity
           style={styles.iconButton}
@@ -51,15 +60,12 @@ export default function FeedHeader() {
 
 const styles = StyleSheet.create({
   header: {
-    backgroundColor: colors.background,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
     zIndex: 100,
   },
   headerBackground: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(18, 18, 18, 0.7)',
-    backdropFilter: 'blur(10px)',
+    backgroundColor: 'transparent',
   },
   headerContent: {
     flexDirection: 'row',
@@ -89,7 +95,6 @@ const styles = StyleSheet.create({
   brandName: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.primary,
     letterSpacing: 0.5,
   },
 
@@ -103,11 +108,8 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   notificationBadge: {
     position: 'absolute',
@@ -131,7 +133,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 0,
   },
   headerMinimal: {
-    backgroundColor: colors.background,
     zIndex: 100,
     paddingHorizontal: 12,
     paddingVertical: 8,

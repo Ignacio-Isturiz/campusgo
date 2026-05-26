@@ -13,21 +13,11 @@ import { Ionicons } from '@expo/vector-icons';
 
 import FeedHeader from '@/components/feed/feed-header';
 import FeedCard from '@/components/feed/feed-card';
-import BottomNavigation from '@/components/feed/bottom-navigation';
+// BottomNavigation removed per user request
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Colors } from '@/constants/theme';
 
 const { width, height } = Dimensions.get('window');
-
-// Colores modernos
-const colors = {
-  background: '#0a0a0a',
-  surface: '#121212',
-  surfaceLight: '#1e1e1e',
-  primary: '#FFFFFF',
-  secondary: 'rgba(255, 255, 255, 0.7)',
-  muted: 'rgba(255, 255, 255, 0.4)',
-  accent: '#FF1493',
-  secondary_accent: '#00D9FF',
-};
 
 // Datos placeholder para las tarjetas del feed
 const PLACEHOLDER_FEED_ITEMS = [
@@ -101,6 +91,8 @@ const PLACEHOLDER_FEED_ITEMS = [
 export default function FeedScreen() {
   const { width: screenWidth } = useWindowDimensions();
   const isMobile = screenWidth < 768;
+  const colorScheme = useColorScheme() ?? 'light';
+  const theme = Colors[colorScheme];
   const [feedItems, setFeedItems] = useState(PLACEHOLDER_FEED_ITEMS);
   const [activeTab, setActiveTab] = useState<'home' | 'search' | 'add' | 'notifications' | 'profile'>('home');
 
@@ -137,8 +129,8 @@ export default function FeedScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+    <SafeAreaView style={[styles.container, { backgroundColor: theme?.background || '#fff' }]} edges={['top']}>
+      <StatusBar barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'} backgroundColor={theme?.background || '#fff'} />
 
       {/* Header */}
       <FeedHeader />
@@ -162,11 +154,7 @@ export default function FeedScreen() {
         />
       </View>
 
-      {/* Bottom Navigation */}
-      <BottomNavigation
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-      />
+      {/* BottomNavigation removed */}
     </SafeAreaView>
   );
 }

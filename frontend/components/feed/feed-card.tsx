@@ -9,16 +9,16 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Colors } from '@/constants/theme';
 
-const colors = {
-  background: '#0a0a0a',
-  surface: '#121212',
-  surfaceLight: '#1e1e1e',
-  primary: '#FFFFFF',
-  secondary: 'rgba(255, 255, 255, 0.7)',
-  muted: 'rgba(255, 255, 255, 0.4)',
+const defaultColors = {
+  background: '#fff',
+  surface: '#fff',
+  primary: '#111',
+  secondary: '#687076',
+  muted: 'rgba(0,0,0,0.4)',
   accent: '#FF1493',
-  secondary_accent: '#00D9FF',
 };
 
 interface FeedCardProps {
@@ -57,6 +57,16 @@ export default function FeedCard({
 }: FeedCardProps) {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
+  const colorScheme = useColorScheme() ?? 'light';
+  const theme = Colors[colorScheme] ?? defaultColors;
+  const colors = {
+    background: theme.background,
+    surface: theme.background,
+    primary: theme.text,
+    secondary: theme.icon,
+    muted: 'rgba(0,0,0,0.4)',
+    accent: theme.tint,
+  };
   const [likeAnim] = useState(new Animated.Value(isLiked ? 1 : 0));
 
   const handleLikePress = () => {
@@ -83,7 +93,7 @@ export default function FeedCard({
   });
 
   return (
-    <View style={[styles.card, { marginHorizontal: isMobile ? 0 : 16 }]}>
+    <View style={[styles.card, { marginHorizontal: isMobile ? 0 : 16, backgroundColor: colors.surface }]}>
       {/* Header - Info del usuario */}
       <View style={styles.cardHeader}>
         <View style={styles.userInfo}>
@@ -179,21 +189,21 @@ export default function FeedCard({
       {/* Caption y info de likes */}
       <View style={styles.captionSection}>
         <View style={styles.likesInfo}>
-          <Text style={styles.likesCount}>
-            <Text style={styles.likesBold}>{formatCount(likes)} </Text>
+          <Text style={[styles.likesCount, { color: colors.primary }]}>
+            <Text style={[styles.likesBold, { color: colors.primary }]}>{formatCount(likes)} </Text>
             {likes === 1 ? 'me gusta' : 'me gustan'}
           </Text>
         </View>
 
         <View style={styles.captionContainer}>
           <Text
-            style={styles.authorHandle}
+            style={[styles.authorHandle, { color: colors.secondary }]}
             numberOfLines={1}
           >
             {handle}{' '}
           </Text>
           <Text
-            style={styles.caption}
+            style={[styles.caption, { color: colors.primary }]}
             numberOfLines={2}
           >
             {caption}
@@ -201,13 +211,13 @@ export default function FeedCard({
         </View>
 
         <TouchableOpacity activeOpacity={0.7}>
-          <Text style={styles.viewMoreComments}>Ver los {formatCount(comments)} comentarios</Text>
+          <Text style={[styles.viewMoreComments, { color: colors.secondary }]}>Ver los {formatCount(comments)} comentarios</Text>
         </TouchableOpacity>
       </View>
 
       {/* Footer - Tiempo */}
       <View style={styles.footer}>
-        <Text style={styles.timeAgo}>Hace 2 horas</Text>
+        <Text style={[styles.timeAgo, { color: colors.secondary }]}>Hace 2 horas</Text>
       </View>
     </View>
   );
@@ -228,9 +238,8 @@ function formatCount(count: number): string {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    borderBottomColor: 'rgba(0,0,0,0.04)',
     marginVertical: 0,
   },
 

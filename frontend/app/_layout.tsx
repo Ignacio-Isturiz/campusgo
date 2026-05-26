@@ -6,7 +6,7 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getToken } from '@/src/utils/storage';
-import { getPreferences } from '@/src/utils/storage';
+import { getPreferences, addPreferencesListener } from '@/src/utils/storage';
 
 export const unstable_settings = {
   anchor: 'index',
@@ -21,6 +21,11 @@ export default function RootLayout() {
       const prefs = await getPreferences();
       if (prefs && prefs.theme) setPrefTheme(prefs.theme as any);
     })();
+    const unsub = addPreferencesListener((prefs) => {
+      if (prefs && prefs.theme) setPrefTheme(prefs.theme as any);
+      else setPrefTheme(null);
+    });
+    return () => unsub();
   }, []);
 
   useEffect(() => {
@@ -88,7 +93,7 @@ export default function RootLayout() {
         {/* Navegación con tabs (Home feed + Explore) */}
         <Stack.Screen name="(tabs)" />
       </Stack>
-      <StatusBar style="dark" />
+      <StatusBar style={(prefTheme || colorScheme) === 'dark' ? 'light' : 'dark'} />
     </ThemeProvider>
   );
 }
