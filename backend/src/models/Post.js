@@ -50,6 +50,11 @@ const postSchema =
         default: false,
       },
 
+      isBienestar: {
+        type: Boolean,
+        default: false,
+      },
+
       likes: [
         {
           type:

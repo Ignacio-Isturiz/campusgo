@@ -8,6 +8,7 @@ const {
   toggleLike,
   deletePost,
   getMarketplacePosts,
+  getBienestarPosts,
 } = require(
   '../controllers/postController'
 );
@@ -27,6 +28,13 @@ router.get(
   '/marketplace',
   requireAuth,
   getMarketplacePosts
+);
+
+// obtener bienestar
+router.get(
+  '/bienestar',
+  requireAuth,
+  getBienestarPosts
 );
 
 // crear publicación

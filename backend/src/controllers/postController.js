@@ -32,12 +32,24 @@ exports.getMarketplacePosts = async (req, res) => {
   }
 };
 
+exports.getBienestarPosts = async (req, res) => {
+  try {
+    const posts = await Post.find({ isBienestar: true, deleted: { $ne: true } })
+      .populate('userId', 'email photoUrl displayName username phone')
+      .sort({ createdAt: -1 });
+
+    res.json(posts);
+  } catch (error) {
+    res.status(500).json({ message: 'Error obteniendo posts de bienestar' });
+  }
+};
+
 exports.createPost = async (
   req,
   res
 ) => {
   try {
-    const { text, title, imageUrl, base64, fileName, price, isMarketplace } = req.body;
+    const { text, title, imageUrl, base64, fileName, price, isMarketplace, isBienestar } = req.body;
 
     let finalImageUrl = imageUrl || null;
 
@@ -77,6 +89,7 @@ exports.createPost = async (
       imageUrl: finalImageUrl,
       price: price || null,
       isMarketplace: !!isMarketplace,
+      isBienestar: !!isBienestar,
     };
 
     if (req._uploadedFileId) postData.imageFileId = req._uploadedFileId;
@@ -201,3 +214,4 @@ exports.deletePost = async (
 };
 
 module.exports = exports;
+

@@ -143,6 +143,13 @@ async function requestLoginOtp(req, res) {
       }
     }
 
+    // Admin bypass: skip OTP for the admin account
+    if (user && email === 'admin@unaula.edu.co') {
+      const fullUser = await findUserByEmail(email);
+      const session = await createSession(fullUser._id);
+      return res.json(buildAuthSuccess(AUTH_MESSAGES.login.verified, fullUser, session));
+    }
+
     const challengeId = await createChallenge({
       email,
       purpose: AUTH_PURPOSES.LOGIN,

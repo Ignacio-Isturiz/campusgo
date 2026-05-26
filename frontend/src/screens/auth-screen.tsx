@@ -9,6 +9,10 @@ import {
   TextInput,
   useWindowDimensions,
   View,
+  Image,
+  KeyboardAvoidingView,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -60,6 +64,8 @@ function fieldLabel(mode: Mode, stage: Stage) {
 }
 
 function actionLabel(mode: Mode, stage: Stage) {
+  // special label for the main login action to match design
+  if (mode === 'login' && stage === 'form') return 'Iniciar Sesión';
   if (stage === 'otp') {
     return 'Verificar código';
   }
@@ -160,7 +166,7 @@ export default function AuthScreen() {
   const { width } = useWindowDimensions();
   const isDesktop = width >= 980;
 
-  const [mode, setMode] = useState<Mode>('login');
+  const [mode] = useState<Mode>('login');
   const [stage, setStage] = useState<Stage>('form');
   const [form, setForm] = useState(initialForm);
   const [challengeId, setChallengeId] = useState('');
@@ -222,6 +228,14 @@ export default function AuthScreen() {
       if (mode === 'login') {
         if (stage === 'form') {
           const response = await requestLoginOtp(email, form.password);
+          // If the backend returned a token directly (admin bypass), skip OTP
+          if (response.token && response.user) {
+            await saveToken(response.token);
+            await saveUser(response.user);
+            setSuccess(response.message || 'Acceso concedido.');
+            router.replace('/loading');
+            return;
+          }
           setChallengeId(response.challengeId || '');
           setStage('otp');
           setMessage(response.message || 'Código OTP enviado al correo institucional.');
@@ -290,22 +304,24 @@ export default function AuthScreen() {
 
   const canSubmit = !loading;
 
+  const kbOffset = Platform.OS === 'ios' ? 100 : 80;
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={[styles.page, isDesktop ? styles.pageDesktop : styles.pageMobile]}>
-        <View style={[styles.shell, isDesktop ? styles.shellDesktop : styles.shellMobile]}>
-          <View style={[styles.hero, isDesktop ? styles.heroDesktop : styles.heroMobile]}>
-            <View style={styles.heroCopy}>
-              <Text style={styles.brandLabel}>UNAULA Connect</Text>
-              <Text style={styles.heroTitle}>
-                Accede a tu comunidad con un{' '}
-                <Text style={{ color: palette.warmDeep }}>login seguro</Text> y{' '}
-                <Text style={{ color: palette.accent }}>OTP institucional</Text>.
-              </Text>
-              <Text style={styles.heroSubtitle}>{subtitle}</Text>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={kbOffset} style={{ flex: 1 }}>
+        <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.page, isDesktop ? styles.pageDesktop : styles.pageMobile]}>
+            <View style={[styles.shell, isDesktop ? styles.shellDesktop : styles.shellMobile]}>
+            <View style={[styles.hero, isDesktop ? styles.heroDesktop : styles.heroMobile]}>
+              <View style={styles.heroCopyCentered}>
+                <View style={styles.logoWrap}>
+                  <Image source={require('@/assets/images/ESCUDO-UNAULA.png')} style={styles.logoLarge} />
+                </View>
+                <Text style={styles.heroBrandTitle}>Universidad Autónoma</Text>
+                <Text style={styles.heroLoginLabel}>Login</Text>
+              </View>
+              {isDesktop ? <HeroArtwork /> : null}
             </View>
-            <HeroArtwork />
-          </View>
 
           <View style={[styles.card, isDesktop ? styles.cardDesktop : styles.cardMobile]}>
             <View style={styles.headerRow}>
@@ -315,17 +331,9 @@ export default function AuthScreen() {
                 </Text>
                 <Text style={styles.cardSubtitle}>{subtitle}</Text>
               </View>
-              <View style={styles.brandMini}>
-                <View style={styles.brandMiniDot} />
-                <Text style={styles.brandMiniText}>UNAULA</Text>
-              </View>
             </View>
 
-            <View style={styles.modeRow}>
-              <ModePill active={mode === 'login'} label="Login" onPress={() => handleModeChange('login')} />
-              <ModePill active={mode === 'register'} label="Registro" onPress={() => handleModeChange('register')} />
-              <ModePill active={mode === 'forgot'} label="Olvidé mi clave" onPress={() => handleModeChange('forgot')} />
-            </View>
+            {/* Mode selection removed - only login is supported */}
 
             {success ? (
               <View style={styles.successBox}>
@@ -393,26 +401,26 @@ export default function AuthScreen() {
               onPress={handlePrimaryAction}
               disabled={!canSubmit}
               style={({ pressed }) => [
-                styles.primaryButton,
+                mode === 'login' && stage === 'form' ? styles.primaryButtonAlt : styles.primaryButton,
                 pressed && canSubmit ? styles.primaryButtonPressed : null,
                 !canSubmit ? styles.primaryButtonDisabled : null,
               ]}>
               {loading ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <Text style={styles.primaryButtonText}>{actionLabel(mode, stage)}</Text>
+                <Text style={mode === 'login' && stage === 'form' ? styles.primaryButtonAltText : styles.primaryButtonText}>
+                  {actionLabel(mode, stage)}
+                </Text>
               )}
             </Pressable>
 
-            <View style={styles.secondaryRow}>
-              <Pressable onPress={() => handleModeChange('forgot')}>
-                <Text style={styles.linkText}>¿Olvidaste tu contraseña?</Text>
-              </Pressable>
-            </View>
+            {/* Secondary actions removed - only login flow available */}
 
           </View>
-        </View>
-      </ScrollView>
+            </View>
+          </ScrollView>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -465,12 +473,42 @@ const styles = StyleSheet.create({
   heroMobile: {
     borderRadius: 28,
     paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 30,
-    gap: 24,
+    paddingTop: 20,
+    paddingBottom: 18,
+    gap: 12,
+    alignItems: 'center',
   },
   heroCopy: {
     gap: 12,
+  },
+  heroCopyCentered: {
+    gap: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoWrap: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    overflow: 'hidden',
+    marginBottom: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoLarge: {
+    width: 120,
+    height: 120,
+    resizeMode: 'contain',
+  },
+  heroBrandTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: palette.ink,
+  },
+  heroLoginLabel: {
+    fontSize: 14,
+    color: palette.muted,
+    marginTop: 4,
   },
   brandLabel: {
     color: palette.warmDeep,
@@ -692,6 +730,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 22,
   },
+  // make card take more vertical space on mobile so the form is the main focus
+  cardMobileFocused: {
+    marginTop: 8,
+  },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -712,28 +754,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     maxWidth: 460,
   },
-  brandMini: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    backgroundColor: palette.background,
-    borderWidth: 1,
-    borderColor: palette.line,
-  },
-  brandMiniDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: palette.warmDeep,
-  },
-  brandMiniText: {
-    color: palette.ink,
-    fontWeight: '700',
-    letterSpacing: 1,
-  },
+  
   modeRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -818,6 +839,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 8,
+  },
+  primaryButtonAlt: {
+    minHeight: 56,
+    borderRadius: 28,
+    backgroundColor: palette.warmDeep,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingHorizontal: 24,
+  },
+  primaryButtonAltText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '800',
   },
   primaryButtonPressed: {
     opacity: 0.88,

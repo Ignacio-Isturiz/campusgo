@@ -58,3 +58,18 @@ export function requestForgotOtp(email: string) {
 export function verifyForgotOtp(challengeId: string, otp: string, newPassword?: string, resetToken?: string) {
   return request<AuthResponse>('/auth/forgot-password/verify-otp', { challengeId, otp, newPassword, resetToken });
 }
+
+export function assignUserRole(email: string, role: string, token: string) {
+  return fetch(`${process.env.EXPO_PUBLIC_API_URL || DEFAULT_API_URL}/auth/admin/assign-role`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ email, role }),
+  }).then(async (res) => {
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.message || 'Error al asignar rol');
+    return data;
+  });
+}

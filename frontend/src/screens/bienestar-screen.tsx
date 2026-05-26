@@ -1,21 +1,19 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, StyleSheet, FlatList, StatusBar, Animated, TouchableOpacity, Text } from 'react-native';
+import { View, StyleSheet, FlatList, TouchableOpacity, Text, TextInput, Image, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import PostCard from '@/components/feed/PostCard';
-import { Platform, useWindowDimensions } from 'react-native';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFocusEffect } from '@react-navigation/native';
-// BottomNavigation removed per user request
 import CreatePostModal from '@/components/feed/CreatePostModal';
-import { getMarketplace, createPost, toggleLike, deletePost } from '@/src/services/postService';
+import { getBienestarPosts, createPost, toggleLike } from '@/src/services/postService';
 import socket from '@/src/services/socket';
 import { getToken, getUser } from '@/src/utils/storage';
 import { on as onEvent } from '@/src/utils/events';
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'react-native';
+import { assignUserRole } from '@/src/services/auth';
 
-export default function MarketplaceScreen() {
+export default function BienestarScreen() {
   const { width } = useWindowDimensions();
   const isMobile = width < 680;
   const colorScheme = useColorScheme() ?? 'light';
@@ -26,7 +24,28 @@ export default function MarketplaceScreen() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [userPhoto, setUserPhoto] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'home' | 'search' | 'add' | 'notifications' | 'profile'>('home');
+  const [assignEmail, setAssignEmail] = useState('');
+  const [assignMessage, setAssignMessage] = useState('');
+  const [assignLoading, setAssignLoading] = useState(false);
+
+  const handleAssignRole = async () => {
+    const email = assignEmail.trim().toLowerCase();
+    if (!email) {
+      setAssignMessage('Ingresa un correo institucional');
+      return;
+    }
+    setAssignLoading(true);
+    setAssignMessage('');
+    try {
+      await assignUserRole(email, 'bienestar', token || '');
+      setAssignMessage(`Rol bienestar asignado a ${email}`);
+      setAssignEmail('');
+    } catch (e: any) {
+      setAssignMessage(e?.message || 'Error al asignar rol');
+    } finally {
+      setAssignLoading(false);
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -47,10 +66,10 @@ export default function MarketplaceScreen() {
             if (savedUser.role) setUserRole(savedUser.role);
           }
 
-          const data = await getMarketplace(savedToken);
-          let posts = data;
+          const data = await getBienestarPosts(savedToken);
+          let posts = Array.isArray(data) ? data : [];
           if (localPhoto && localUserId) {
-            posts = (data || []).map((post: any) => {
+            posts = posts.map((post: any) => {
               const postUserId = post.userId && (post.userId.id || post.userId._id);
               if (postUserId === localUserId) {
                 return { ...post, userId: { ...post.userId, photoUrl: localPhoto } };
@@ -60,7 +79,7 @@ export default function MarketplaceScreen() {
           }
           setPosts(posts);
         } catch (e) {
-          console.log('marketplace init error', e);
+          console.log('bienestar init error', e);
         }
       };
 
@@ -75,10 +94,10 @@ export default function MarketplaceScreen() {
       if (!savedToken) return;
       const savedUser = await getUser();
       const localUserId = savedUser?.id || savedUser?._id;
-      const data = await getMarketplace(savedToken);
-      let posts = data;
+      const data = await getBienestarPosts(savedToken);
+      let posts = Array.isArray(data) ? data : [];
       if (localUserId) {
-        posts = (data || []).map((post: any) => {
+        posts = posts.map((post: any) => {
           const postUserId = post.userId && (post.userId.id || post.userId._id);
           if (postUserId === localUserId) {
             return { ...post, userId: { ...post.userId, photoUrl: photoUrl } };
@@ -98,7 +117,7 @@ export default function MarketplaceScreen() {
       setPosts(prev => {
         if (!post) return prev;
         if (prev.some(p => p._id === post._id)) return prev;
-        if (post.isMarketplace || post.price || post.title) return [post, ...prev];
+        if (post.isBienestar) return [post, ...prev];
         return prev;
       });
     });
@@ -114,7 +133,6 @@ export default function MarketplaceScreen() {
     try {
       if (!token) return;
       const created = await createPost(data, token);
-      // prepend created post so user sees it immediately
       setPosts(prev => {
         if (!created) return prev;
         if (prev.some(p => p._id === created._id)) return prev;
@@ -148,30 +166,27 @@ export default function MarketplaceScreen() {
     setPosts(prev => prev.filter(p => p._id !== postId));
   };
 
-  const renderItem = ({ item, index }: { item: any; index: number }) => (
+  const canPublish = userRole === 'admin' || userRole === 'bienestar';
+
+  const renderItem = ({ item }: { item: any }) => (
     <View style={styles.postWrapper}>
       <View style={styles.postInner}>
-        <Animated.View style={[styles.cardWrapper, { opacity: new Animated.Value(1) }]}> 
-          <PostCard
-            post={item}
-            onLike={handleLike}
-            onDeleteSuccess={handleDeleteSuccess}
-            currentUserId={currentUserId}
-            mode="marketplace"
-          />
-        </Animated.View>
+        <PostCard
+          post={item}
+          onLike={handleLike}
+          onDeleteSuccess={handleDeleteSuccess}
+          currentUserId={currentUserId}
+        />
       </View>
     </View>
   );
 
   return (
     <SafeAreaView style={[styles.page, { backgroundColor: theme.background || '#faf9f8' }]} edges={['top']}>
-      {/* Sidebar removed: using bottom navigation across all sections */}
-
       <View style={[styles.container, isMobile ? styles.containerMobile : {}, { backgroundColor: theme.background }]}>
         <View style={styles.feedHeader}>
-          <Text style={[styles.feedTitle, { color: theme.text }]}>Marketplace</Text>
-          {userRole === 'admin' ? (
+          <Text style={[styles.feedTitle, { color: theme.text }]}>Bienestar</Text>
+          {canPublish ? (
             <View style={styles.headerRight}>
               <TouchableOpacity style={styles.publishBtn} onPress={() => setModalVisible(true)}>
                 <Text style={styles.publishText}>+ Publicar</Text>
@@ -180,16 +195,42 @@ export default function MarketplaceScreen() {
           ) : null}
         </View>
 
-        {/* Quick composer row - alternate way to open create modal */}
         {userRole === 'admin' ? (
-        <TouchableOpacity style={[styles.composeRow, { backgroundColor: colorScheme === 'dark' ? '#141516' : '#ffffff', borderColor: colorScheme === 'dark' ? '#222' : '#eee' }]} activeOpacity={0.7} onPress={() => setModalVisible(true)}>
-          {userPhoto ? (
-            <Image source={{ uri: userPhoto }} style={styles.composeAvatar} />
-          ) : (
-            <Ionicons name="person-circle" size={36} color="#888" />
-          )}
-          <Text style={[styles.composePlaceholder, { color: theme.icon }]}>¿Qué quieres compartir hoy?</Text>
-        </TouchableOpacity>
+          <View style={[styles.adminPanel, { backgroundColor: colorScheme === 'dark' ? '#1a1a1a' : '#FFF8F0', borderColor: colorScheme === 'dark' ? '#333' : '#F0DCC8' }]}>
+            <Text style={[styles.adminTitle, { color: theme.text }]}>Panel Admin — Asignar rol bienestar</Text>
+            <View style={styles.adminRow}>
+              <TextInput
+                placeholder="correo@unaula.edu.co"
+                placeholderTextColor="#999"
+                value={assignEmail}
+                onChangeText={(v) => { setAssignEmail(v); setAssignMessage(''); }}
+                style={[styles.adminInput, { color: theme.text, borderColor: colorScheme === 'dark' ? '#444' : '#ddd' }]}
+                autoCapitalize="none"
+                keyboardType="email-address"
+              />
+              <TouchableOpacity
+                style={[styles.adminBtn, assignLoading ? { opacity: 0.5 } : {}]}
+                onPress={handleAssignRole}
+                disabled={assignLoading}
+              >
+                <Text style={styles.adminBtnText}>{assignLoading ? 'Asignando...' : 'Asignar'}</Text>
+              </TouchableOpacity>
+            </View>
+            {assignMessage ? (
+              <Text style={[styles.adminMsg, { color: assignMessage.includes('Error') ? '#E74C3C' : '#27AE60' }]}>{assignMessage}</Text>
+            ) : null}
+          </View>
+        ) : null}
+
+        {canPublish ? (
+          <TouchableOpacity style={[styles.composeRow, { backgroundColor: colorScheme === 'dark' ? '#141516' : '#ffffff', borderColor: colorScheme === 'dark' ? '#222' : '#eee' }]} activeOpacity={0.7} onPress={() => setModalVisible(true)}>
+            {userPhoto ? (
+              <Image source={{ uri: userPhoto }} style={styles.composeAvatar} />
+            ) : (
+              <Ionicons name="person-circle" size={36} color="#888" />
+            )}
+            <Text style={[styles.composePlaceholder, { color: theme.icon }]}>¿Qué novedades de bienestar tienes?</Text>
+          </TouchableOpacity>
         ) : null}
 
         <View style={[styles.feedContainer, isMobile ? { paddingHorizontal: 8 } : {}]}>
@@ -202,12 +243,9 @@ export default function MarketplaceScreen() {
           />
         </View>
 
-        {userRole === 'admin' ? (
-        <CreatePostModal visible={modalVisible} onClose={() => setModalVisible(false)} onSubmit={handleCreatePost} marketplaceOnly />
+        {canPublish ? (
+          <CreatePostModal visible={modalVisible} onClose={() => setModalVisible(false)} onSubmit={handleCreatePost} bienestarOnly />
         ) : null}
-
-        
-        {/* FAB removed per request */}
       </View>
     </SafeAreaView>
   );
@@ -215,12 +253,10 @@ export default function MarketplaceScreen() {
 
 const styles = StyleSheet.create({
   page: { flexDirection: 'row', width: '100%', height: '100%' },
-  sidebarContainer: { position: 'absolute', left: 0, top: 0, bottom: 0 },
   container: { flex: 1 },
   containerMobile: { paddingHorizontal: 8 },
   feedContainer: { flex: 1 },
   feedContent: { padding: 16, paddingBottom: 120 },
-  cardWrapper: { marginBottom: 12, marginHorizontal: 0 },
   postWrapper: { width: '100%', alignItems: 'center' },
   postInner: { width: '100%', maxWidth: 840 },
   feedHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
@@ -247,5 +283,46 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
     backgroundColor: '#ddd',
+  },
+  adminPanel: {
+    marginHorizontal: 12,
+    marginBottom: 12,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  adminTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 8,
+  },
+  adminRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  adminInput: {
+    flex: 1,
+    height: 40,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    fontSize: 14,
+  },
+  adminBtn: {
+    backgroundColor: '#ff7a00',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  adminBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  adminMsg: {
+    marginTop: 6,
+    fontSize: 13,
+    fontWeight: '500',
   },
 });

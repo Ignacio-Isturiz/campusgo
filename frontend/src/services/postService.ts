@@ -74,6 +74,14 @@ export function getMarketplace(token: string) {
   );
 }
 
+export function getBienestarPosts(token: string) {
+  return request(
+    '/api/posts/bienestar',
+    'GET',
+    token
+  );
+}
+
 export function createPost(
   data: any,
   token: string

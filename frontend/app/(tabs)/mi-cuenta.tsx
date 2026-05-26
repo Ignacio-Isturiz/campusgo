@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,8 +13,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import * as ImagePicker from 'expo-image-picker';
-import { getUser, saveUser, signOut, savePhoto, getPhoto, clearAll } from '@/src/utils/storage';
+import { getUser, signOut, getPhoto, clearAll } from '@/src/utils/storage';
+import { on as onEvent } from '@/src/utils/events';
 import { accountPalette } from '@/src/components/account/AccountStyles';
 
 /**
@@ -63,75 +63,12 @@ export default function MiCuentaScreen() {
     }, []),
   );
 
-  const handlePickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
+  useEffect(() => {
+    const unsub = onEvent('photo:changed', (photoUrl: string) => {
+      setPhoto(photoUrl);
     });
-
-    if (!result.canceled) {
-      const uri = result.assets[0].uri;
-      setPhoto(uri);
-      await savePhoto(uri);
-
-      // Upload base64 to backend so it persists and is available on other devices
-      try {
-        const token = (await import('@/src/utils/storage').then((m) => m.getToken())) as string | null;
-        if (token) {
-          // convert uri to base64 in a cross-platform way
-          async function uriToBase64(u: string) {
-            if (Platform.OS === 'web') {
-              const resp = await fetch(u);
-              const blob = await resp.blob();
-              return await new Promise<string>((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                  const dataUrl = reader.result as string;
-                  resolve(dataUrl.split(',')[1]);
-                };
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
-              });
-            }
-            const FileSystem = await import('expo-file-system');
-            return await FileSystem.readAsStringAsync(u, { encoding: 'base64' });
-          }
-
-          const base64 = await uriToBase64(uri);
-          const fileName = `profile_${Date.now()}.jpg`;
-
-          const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
-          const r = await fetch(`${API_URL}/auth/profile/photo`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ base64, fileName }),
-          });
-
-          if (r.ok) {
-            const data = await r.json();
-            if (data.user && data.user.photoUrl) {
-              // save the remote url locally so it persists across refresh
-              await savePhoto(data.user.photoUrl);
-              // also update the saved user data so photoUrl persists
-              if (user) {
-                const updatedUser = { ...user, photoUrl: data.user.photoUrl };
-                await saveUser(updatedUser);
-                setUser(updatedUser);
-              }
-              setPhoto(data.user.photoUrl);
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('Could not upload photo to backend:', err);
-      }
-    }
-  };
+    return () => unsub();
+  }, []);
 
   const handleLogout = async () => {
     try {
@@ -154,8 +91,9 @@ export default function MiCuentaScreen() {
       window.location.replace('/');
       return;
     }
-    // replace navigation stack to auth screen
-    router.replace('/');
+    // For native platforms, navigate to loading which checks auth
+    // and redirects to login if no token (avoids tabs/index ambiguity)
+    router.replace('/loading');
   };
 
   const menuItems = [
@@ -221,16 +159,13 @@ export default function MiCuentaScreen() {
                 source={photo ? { uri: photo } : require('@/assets/images/sinfoto.png')}
                 style={styles.avatar}
               />
-              <TouchableOpacity style={styles.cameraBtn} onPress={handlePickImage}>
-                <Ionicons name="camera" size={16} color="#000" />
-              </TouchableOpacity>
             </View>
             <Text style={styles.userName}>
               {user?.email ? parseNameFromEmail(user.email) : 'Estudiante UNAULA'}
             </Text>
             <Text style={styles.userEmail}>{user?.email || 'correo@unaula.edu.co'}</Text>
             <View style={styles.roleBadge}>
-              <Text style={styles.roleText}>Estudiante</Text>
+              <Text style={styles.roleText}>{user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Estudiante'}</Text>
             </View>
           </View>
         </View>
@@ -342,22 +277,6 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     borderWidth: 4,
     borderColor: '#FFF',
-  },
-  cameraBtn: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: '#FFF',
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
   },
   userName: {
     fontSize: 22,

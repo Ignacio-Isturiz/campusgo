@@ -1,6 +1,7 @@
 import React, {
   useEffect,
   useState,
+  useCallback,
 } from 'react';
 
 import {
@@ -19,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Platform, useWindowDimensions } from 'react-native';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useFocusEffect } from '@react-navigation/native';
 
 import CreatePostModal from '@/components/feed/CreatePostModal';
 
@@ -33,6 +35,7 @@ import socket from '@/src/services/socket';
 
 import { getToken } from '@/src/utils/storage';
 import { getUser } from '@/src/utils/storage';
+import { on as onEvent } from '@/src/utils/events';
 
 export default function FeedScreen() {
   const { width } = useWindowDimensions();
@@ -49,48 +52,79 @@ export default function FeedScreen() {
   const [token, setToken] = useState('');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [userPhoto, setUserPhoto] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      const loadData = async () => {
+        try {
+          const savedToken = await getToken();
+          if (!savedToken) return;
+
+          setToken(savedToken);
+
+          const savedUser = await getUser();
+          let localPhoto: string | null = null;
+          let localUserId: string | null = null;
+          if (savedUser) {
+            localUserId = savedUser.id || savedUser._id;
+            if (localUserId) setCurrentUserId(localUserId);
+            localPhoto = savedUser.photoUrl || savedUser.photo || savedUser.avatar || null;
+            if (localPhoto) setUserPhoto(localPhoto);
+            if (savedUser.role) setUserRole(savedUser.role);
+          }
+
+          const data = await getFeed(savedToken);
+          let posts = Array.isArray(data) ? data.filter((p: any) => !p.isMarketplace && !p.isBienestar) : [];
+          if (localPhoto && localUserId) {
+            posts = posts.map((post: any) => {
+              const postUserId = post.userId && (post.userId.id || post.userId._id);
+              if (postUserId === localUserId) {
+                return { ...post, userId: { ...post.userId, photoUrl: localPhoto } };
+              }
+              return post;
+            });
+          }
+          setPosts(posts);
+        } catch (error) {
+          console.log(error);
+        }
+      };
+
+      loadData();
+    }, []),
+  );
 
   useEffect(() => {
-    const initialize = async () => {
-      try {
-        // obtener token guardado
-        const savedToken =
-          await getToken();
-
-        if (!savedToken) {
-          console.log(
-            'No hay token guardado'
-          );
-
-          return;
-        }
-
-        // guardar token en estado
-        setToken(savedToken);
-
-        // obtener usuario guardado para verificar permisos de delete
-        const savedUser = await getUser();
-        if (savedUser) {
-          if (savedUser.id) setCurrentUserId(savedUser.id);
-          const photo = savedUser.photoUrl || savedUser.photo || savedUser.avatar || null;
-          if (photo) setUserPhoto(photo);
-        }
-
-        // cargar feed
-        const data = await getFeed(savedToken);
-        // exclude marketplace items from main feed so products only appear in Marketplace
-        setPosts(Array.isArray(data) ? data.filter((p: any) => !p.isMarketplace) : []);
-      } catch (error) {
-        console.log(error);
+    const unsubPhoto = onEvent('photo:changed', async (photoUrl: string) => {
+      setUserPhoto(photoUrl);
+      const savedToken = await getToken();
+      if (!savedToken) return;
+      const savedUser = await getUser();
+      const localUserId = savedUser?.id || savedUser?._id;
+      const data = await getFeed(savedToken);
+      let posts = Array.isArray(data) ? data.filter((p: any) => !p.isMarketplace && !p.isBienestar) : [];
+      if (localUserId) {
+        posts = posts.map((post: any) => {
+          const postUserId = post.userId && (post.userId.id || post.userId._id);
+          if (postUserId === localUserId) {
+            return { ...post, userId: { ...post.userId, photoUrl: photoUrl } };
+          }
+          return post;
+        });
       }
+      setPosts(posts);
+    });
+    return () => {
+      unsubPhoto();
     };
+  }, []);
 
-    initialize();
-
+  useEffect(() => {
     // sockets realtime
     socket.on('newPost', post => {
-      // ignore marketplace posts in regular feed
-      if (post && post.isMarketplace) return;
+      // ignore marketplace and bienestar posts in regular feed
+      if (post && (post.isMarketplace || post.isBienestar)) return;
       setPosts(prev => [post, ...prev]);
     });
 
@@ -143,13 +177,20 @@ export default function FeedScreen() {
       }
     };
 
-  // like
-  const handleLike = async (
-    postId: string
-  ) => {
+  const handleLike = async (postId: string) => {
+    if (!token || !currentUserId) return;
+    // optimistic update
+    setPosts(prev =>
+      prev.map(p => {
+        if (p._id !== postId) return p;
+        const alreadyLiked = p.likes?.some((id: any) => String(id) === currentUserId);
+        const updatedLikes = alreadyLiked
+          ? p.likes.filter((id: any) => String(id) !== currentUserId)
+          : [...(p.likes || []), currentUserId];
+        return { ...p, likes: updatedLikes, likesCount: updatedLikes.length };
+      })
+    );
     try {
-      if (!token) return;
-
       await toggleLike(postId, token);
     } catch (error) {
       console.log(error);
@@ -200,14 +241,17 @@ export default function FeedScreen() {
       <View style={[styles.container, isMobile ? styles.containerMobile : {}, { backgroundColor: theme.background }]}>
         <View style={styles.feedHeader}>
           <Text style={[styles.feedTitle, { color: theme.text }]}>Feed</Text>
-          <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.publishBtn} onPress={() => setModalVisible(true)}>
-              <Text style={styles.publishText}>+ Publicar</Text>
-            </TouchableOpacity>
-          </View>
+          {userRole === 'admin' ? (
+            <View style={styles.headerRight}>
+              <TouchableOpacity style={styles.publishBtn} onPress={() => setModalVisible(true)}>
+                <Text style={styles.publishText}>+ Publicar</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
         </View>
 
         {/* Quick composer row - alternate way to open create modal */}
+        {userRole === 'admin' ? (
         <TouchableOpacity style={[styles.composeRow, { backgroundColor: colorScheme === 'dark' ? '#141516' : '#ffffff', borderColor: colorScheme === 'dark' ? '#222' : '#eee' }]} activeOpacity={0.7} onPress={() => setModalVisible(true)}>
           {userPhoto ? (
             <Image source={{ uri: userPhoto }} style={styles.composeAvatar} />
@@ -216,6 +260,7 @@ export default function FeedScreen() {
           )}
           <Text style={[styles.composePlaceholder, { color: theme.icon }]}>¿Qué quieres compartir hoy?</Text>
         </TouchableOpacity>
+        ) : null}
 
         <FlatList
           data={posts}
@@ -240,11 +285,13 @@ export default function FeedScreen() {
           showsVerticalScrollIndicator={false}
         />
 
+        {userRole === 'admin' ? (
         <CreatePostModal
           visible={modalVisible}
           onClose={() => setModalVisible(false)}
           onSubmit={handleCreatePost}
         />
+        ) : null}
 
         {/* FAB removed per request */}
       </View>
