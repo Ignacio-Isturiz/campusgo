@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Platform, View, Text, StyleSheet, Pressable, useWindowDimensions } from 'react-native';
-import { Tabs, Slot, Link } from 'expo-router';
+import { Tabs, Slot, Link, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { getToken } from '@/src/utils/storage';
 
 const SCREENS = [
   { name: 'feed', title: 'feed', icon: 'newspaper-outline', iconFocused: 'newspaper' },
@@ -15,6 +16,16 @@ const SCREENS = [
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+
+  useEffect(() => {
+    (async () => {
+      const token = await getToken();
+      if (!token) {
+        router.replace('/');
+      }
+    })();
+  }, []);
+
   // Always use bottom Tabs for navigation (sidebar removed per design).
   return (
     <Tabs

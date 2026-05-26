@@ -18,6 +18,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { getUser, saveUser, getPhoto, savePhoto } from '@/src/utils/storage';
 import { getToken as getUserToken } from '@/src/utils/storage';
 import { accountPalette, commonStyles } from '@/src/components/account/AccountStyles';
+import { emit } from '@/src/utils/events';
 
 /**
  * Extrae el nombre y apellido del formato nombre.apellido####@unaula.edu.co
@@ -125,8 +126,8 @@ export default function InfoScreen() {
                 reader.readAsDataURL(blob);
               });
             }
-            const FileSystem = await import('expo-file-system');
-            return await FileSystem.readAsStringAsync(u, { encoding: FileSystem.EncodingType.Base64 });
+            const { readAsStringAsync } = await import('expo-file-system');
+            return await readAsStringAsync(u, { encoding: 'base64' });
           }
 
           const base64 = await uriToBase64(uri);
@@ -158,6 +159,7 @@ export default function InfoScreen() {
                 // non-fatal
                 console.warn('Could not update saved user with photoUrl', e);
               }
+              emit('photo:changed', data.user.photoUrl);
             }
           }
         }

@@ -27,6 +27,15 @@ export default function LoadingScreen() {
   const [scaleAnim] = useState(new Animated.Value(0.8));
 
   useEffect(() => {
+    // Verificar sesión inmediatamente (cierre de sesión en móvil)
+    (async () => {
+      const token = await getToken();
+      if (!token) {
+        router.replace('/');
+        return;
+      }
+    })();
+
     // Animación de entrada elegante
     Animated.parallel([
       Animated.timing(fadeAnim, {

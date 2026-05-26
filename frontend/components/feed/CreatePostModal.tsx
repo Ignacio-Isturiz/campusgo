@@ -1,6 +1,4 @@
 import React, { useState } from 'react';
-import { Dimensions } from 'react-native';
-
 import {
   Modal,
   View,
@@ -11,15 +9,18 @@ import {
   Image,
   Platform,
   ScrollView,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 
 type Props = {
   visible: boolean;
   onClose: () => void;
   onSubmit: (data: any) => void;
   marketplaceOnly?: boolean;
+  bienestarOnly?: boolean;
 };
 
 export default function CreatePostModal({
@@ -27,6 +28,7 @@ export default function CreatePostModal({
   onClose,
   onSubmit,
   marketplaceOnly = false,
+  bienestarOnly = false,
 }: Props) {
   const windowHeight = Dimensions.get('window').height;
   const [text, setText] = useState('');
@@ -52,6 +54,7 @@ export default function CreatePostModal({
     if (title && title.trim().length > 0) payload.title = title.trim();
     if (marketplaceOnly && price && price.trim().length > 0) payload.price = Number(price);
     if (marketplaceOnly) payload.isMarketplace = true;
+    if (bienestarOnly) payload.isBienestar = true;
     if (imageBase64) {
       payload.base64 = imageBase64;
       payload.fileName = fileName || `post_${Date.now()}.jpg`;
@@ -84,9 +87,9 @@ export default function CreatePostModal({
   const handlePickImage = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.All,
-        allowsEditing: true,
-        aspect: [4, 3],
+        mediaTypes: ['images', 'videos'],
+        allowsEditing: !bienestarOnly,
+        aspect: bienestarOnly ? undefined : [4, 3],
         quality: 0.7,
         base64: Platform.OS === 'web' ? false : true,
       });
@@ -120,23 +123,32 @@ export default function CreatePostModal({
         }
       }
 
-      // convert to base64
-        if (Platform.OS === 'web') {
-        // fetch blob and convert to dataUrl
-        const resp = await fetch(uri);
-        const blob = await resp.blob();
-        const dataUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
-        setImageBase64(dataUrl.split(',')[1]);
+      // convert to base64 — prefer asset.base64 from the picker, fallback to FileSystem
+      let b64: string | null = null;
+      if (asset.base64) {
+        b64 = asset.base64;
+      } else if (Platform.OS === 'web') {
+        try {
+          const resp = await fetch(uri);
+          const blob = await resp.blob();
+          const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+          b64 = dataUrl.split(',')[1];
+        } catch (e) {
+          console.warn('web base64 fallback failed', e);
+        }
       } else {
-        const FileSystem = await import('expo-file-system');
-        const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
-        setImageBase64(base64);
+        try {
+          b64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+        } catch (e) {
+          console.warn('FileSystem.readAsStringAsync failed', e);
+        }
       }
+      setImageBase64(b64);
     } catch (err) {
       console.warn('Error picking image', err);
     }
@@ -158,7 +170,7 @@ export default function CreatePostModal({
             <Text style={styles.headerAction}>Cancelar</Text>
           </TouchableOpacity>
 
-          <Text style={styles.headerTitle}>{marketplaceOnly ? 'Nuevo producto' : 'Nuevo hilo'}</Text>
+          <Text style={styles.headerTitle}>{bienestarOnly ? 'Nueva publicación de bienestar' : marketplaceOnly ? 'Nuevo producto' : 'Nuevo hilo'}</Text>
 
           <TouchableOpacity
             onPress={handleSubmit}

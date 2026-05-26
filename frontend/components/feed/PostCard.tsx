@@ -46,6 +46,12 @@ export default function PostCard({
     !!currentUserId &&
     (post.userId && (post.userId.id || post.userId._id || post.userId)) === currentUserId;
 
+  const liked = !!(currentUserId && post.likes?.some((id: any) => {
+    const idStr = typeof id === 'string' ? id : String(id);
+    return idStr === currentUserId;
+  }));
+  const likeCount = post.likesCount ?? post.likes?.length ?? 0;
+
   const handleContact = async () => {
     const phone = post.userId?.phone;
     if (!phone) return Alert.alert('Teléfono no disponible', 'El vendedor no ha agregado un número de contacto.');
@@ -97,11 +103,11 @@ export default function PostCard({
     ]}>
       <View style={styles.header}>
         <Image
-          source={{
-            uri:
-              post.userId?.photoUrl ||
-              'https://i.pravatar.cc/150',
-          }}
+          source={
+            post.userId?.photoUrl
+              ? { uri: post.userId.photoUrl }
+              : require('@/assets/images/sinfoto.png')
+          }
           style={styles.avatar}
         />
 
@@ -196,9 +202,11 @@ export default function PostCard({
         ) : (
           <TouchableOpacity
             onPress={() => onLike(post._id)}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
           >
-            <Text style={[styles.action, isWeb && styles.actionWeb]}>
-              ❤️ {post.likesCount}
+            <Ionicons name={liked ? 'heart' : 'heart-outline'} size={18} color={liked ? '#ff4d4d' : '#888'} />
+            <Text style={[styles.action, isWeb && styles.actionWeb, liked ? { color: '#ff4d4d' } : {}]}>
+              {likeCount}
             </Text>
           </TouchableOpacity>
         )}
