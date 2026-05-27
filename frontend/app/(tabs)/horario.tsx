@@ -11,8 +11,8 @@ import {
   TextInput,
   Platform,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { saveLastRoute } from '@/src/utils/storage';
+import { saveLastRoute, getToken } from '@/src/utils/storage';
+import { getSchedule, saveSchedule, deleteBlock as deleteBlockAPI } from '@/src/services/scheduleService';
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
@@ -55,7 +55,6 @@ const PALETTE = [
 const HOURS = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
 const CELL_H = 60;
 const TIME_W = 48;
-const STORAGE_KEY = 'horario_grid_v3';
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 const colorFor = (i: number) => PALETTE[i % PALETTE.length];
@@ -67,17 +66,46 @@ export default function HorarioScreen() {
   const [detailBlock, setDetailBlock] = useState<ClassBlock | null>(null);
   const [editVisible, setEditVisible] = useState(false);
   const [editData, setEditData] = useState<Partial<ClassBlock>>({});
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     saveLastRoute('/(tabs)/horario');
-    AsyncStorage.getItem(STORAGE_KEY).then(raw => {
-      if (raw) setBlocks(JSON.parse(raw));
-    });
+    loadSchedule();
   }, []);
 
+  const loadSchedule = async () => {
+    try {
+      const token = await getToken();
+      if (!token) {
+        console.warn('No token found');
+        setLoading(false);
+        return;
+      }
+      const schedule = await getSchedule(token);
+      setBlocks(schedule.blocks || []);
+    } catch (error) {
+      console.error('Error cargando horario:', error);
+      Alert.alert('Error', 'No se pudo cargar el horario');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const persist = useCallback(async (updated: ClassBlock[]) => {
-    setBlocks(updated);
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    try {
+      const token = await getToken();
+      if (!token) {
+        Alert.alert('Error', 'No hay sesión activa');
+        return;
+      }
+      setBlocks(updated);
+      await saveSchedule(updated, token);
+    } catch (error) {
+      console.error('Error guardando horario:', error);
+      Alert.alert('Error', 'No se pudo guardar el horario');
+      // Revertir cambios locales en caso de error
+      loadSchedule();
+    }
   }, []);
 
   // ── Actions ─────────────────────────────────────────────────────────────────
@@ -130,21 +158,23 @@ const confirmDelete = (id: string) => {
         style: 'destructive',
         onPress: async () => {
           try {
+            const token = await getToken();
+            if (!token) {
+              Alert.alert('Error', 'No hay sesión activa');
+              return;
+            }
+
             const updatedBlocks = blocks.filter(
               item => item.id !== id
             );
 
-            await AsyncStorage.setItem(
-              STORAGE_KEY,
-              JSON.stringify(updatedBlocks)
-            );
-
+            await deleteBlockAPI(id, token);
             setBlocks(updatedBlocks);
-
             setDetailBlock(null);
 
           } catch (err) {
-            console.log(err);
+            console.error('Error eliminando clase:', err);
+            Alert.alert('Error', 'No se pudo eliminar la clase');
           }
         },
       },

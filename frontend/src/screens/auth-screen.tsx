@@ -11,8 +11,6 @@ import {
   View,
   Image,
   KeyboardAvoidingView,
-  TouchableWithoutFeedback,
-  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -309,9 +307,12 @@ export default function AuthScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={kbOffset} style={{ flex: 1 }}>
-        <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.page, isDesktop ? styles.pageDesktop : styles.pageMobile]}>
-            <View style={[styles.shell, isDesktop ? styles.shellDesktop : styles.shellMobile]}>
+        <ScrollView 
+          keyboardShouldPersistTaps="handled" 
+          contentContainerStyle={[styles.page, isDesktop ? styles.pageDesktop : styles.pageMobile]}
+          scrollEnabled={true}
+        >
+          <View style={[styles.shell, isDesktop ? styles.shellDesktop : styles.shellMobile]}>
             <View style={[styles.hero, isDesktop ? styles.heroDesktop : styles.heroMobile]}>
               <View style={styles.heroCopyCentered}>
                 <View style={styles.logoWrap}>
@@ -323,103 +324,97 @@ export default function AuthScreen() {
               {isDesktop ? <HeroArtwork /> : null}
             </View>
 
-          <View style={[styles.card, isDesktop ? styles.cardDesktop : styles.cardMobile]}>
-            <View style={styles.headerRow}>
-              <View>
-                <Text style={styles.cardTitle}>
-                  {mode === 'login' ? 'Iniciar sesión' : mode === 'register' ? 'Crear cuenta' : 'Recuperar contraseña'}
-                </Text>
-                <Text style={styles.cardSubtitle}>{subtitle}</Text>
+            <View style={[styles.card, isDesktop ? styles.cardDesktop : styles.cardMobile]}>
+              <View style={styles.headerRow}>
+                <View>
+                  <Text style={styles.cardTitle}>
+                    {mode === 'login' ? 'Iniciar sesión' : mode === 'register' ? 'Crear cuenta' : 'Recuperar contraseña'}
+                  </Text>
+                  <Text style={styles.cardSubtitle}>{subtitle}</Text>
+                </View>
               </View>
+
+              {success ? (
+                <View style={styles.successBox}>
+                  <Ionicons name="checkmark-circle" size={22} color={palette.warmDeep} />
+                  <Text style={styles.successText}>{success}</Text>
+                </View>
+              ) : null}
+
+              <Field
+                label={fieldLabel(mode, stage)}
+                value={form.email}
+                onChangeText={(text) => setForm((current) => ({ ...current, email: text }))}
+                placeholder={`correo@unaula.edu.co`}
+                keyboardType="email-address"
+              />
+
+              {mode === 'register' && stage === 'form' ? (
+                <Field
+                  label="Contraseña"
+                  value={form.password}
+                  onChangeText={(text) => setForm((current) => ({ ...current, password: text }))}
+                  placeholder="Ingresa tu contraseña"
+                  secureTextEntry
+                />
+              ) : null}
+
+              {mode === 'register' && stage === 'form' ? (
+                <Field
+                  label="Confirmar contraseña"
+                  value={form.confirmPassword}
+                  onChangeText={(text) => setForm((current) => ({ ...current, confirmPassword: text }))}
+                  placeholder="Repite tu contraseña"
+                  secureTextEntry
+                />
+              ) : null}
+
+              {stage !== 'form' ? (
+                <Field
+                  label="Código OTP"
+                  value={form.otp}
+                  onChangeText={(text) => setForm((current) => ({ ...current, otp: text }))}
+                  placeholder="000000"
+                  keyboardType="number-pad"
+                />
+              ) : null}
+
+              {mode === 'forgot' && stage === 'reset' ? (
+                <Field
+                  label="Nueva contraseña"
+                  value={form.newPassword}
+                  onChangeText={(text) => setForm((current) => ({ ...current, newPassword: text }))}
+                  placeholder="Escribe una nueva contraseña"
+                  secureTextEntry
+                />
+              ) : null}
+
+              {message ? (
+                <View style={styles.messageBox}>
+                  <Ionicons name="information-circle-outline" size={18} color={palette.warmDeep} />
+                  <Text style={styles.messageText}>{message}</Text>
+                </View>
+              ) : null}
+
+              <Pressable
+                onPress={handlePrimaryAction}
+                disabled={!canSubmit}
+                style={({ pressed }) => [
+                  mode === 'login' && stage === 'form' ? styles.primaryButtonAlt : styles.primaryButton,
+                  pressed && canSubmit ? styles.primaryButtonPressed : null,
+                  !canSubmit ? styles.primaryButtonDisabled : null,
+                ]}>
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={mode === 'login' && stage === 'form' ? styles.primaryButtonAltText : styles.primaryButtonText}>
+                    {actionLabel(mode, stage)}
+                  </Text>
+                )}
+              </Pressable>
             </View>
-
-            {/* Mode selection removed - only login is supported */}
-
-            {success ? (
-              <View style={styles.successBox}>
-                <Ionicons name="checkmark-circle" size={22} color={palette.warmDeep} />
-                <Text style={styles.successText}>{success}</Text>
-              </View>
-            ) : null}
-
-            <Field
-              label={fieldLabel(mode, stage)}
-              value={form.email}
-              onChangeText={(text) => setForm((current) => ({ ...current, email: text }))}
-              placeholder={`correo@unaula.edu.co`}
-              keyboardType="email-address"
-            />
-
-            {mode === 'register' && stage === 'form' ? (
-              <Field
-                label="Contraseña"
-                value={form.password}
-                onChangeText={(text) => setForm((current) => ({ ...current, password: text }))}
-                placeholder="Ingresa tu contraseña"
-                secureTextEntry
-              />
-            ) : null}
-
-            {mode === 'register' && stage === 'form' ? (
-              <Field
-                label="Confirmar contraseña"
-                value={form.confirmPassword}
-                onChangeText={(text) => setForm((current) => ({ ...current, confirmPassword: text }))}
-                placeholder="Repite tu contraseña"
-                secureTextEntry
-              />
-            ) : null}
-
-            {stage !== 'form' ? (
-              <Field
-                label="Código OTP"
-                value={form.otp}
-                onChangeText={(text) => setForm((current) => ({ ...current, otp: text }))}
-                placeholder="000000"
-                keyboardType="number-pad"
-              />
-            ) : null}
-
-            {mode === 'forgot' && stage === 'reset' ? (
-              <Field
-                label="Nueva contraseña"
-                value={form.newPassword}
-                onChangeText={(text) => setForm((current) => ({ ...current, newPassword: text }))}
-                placeholder="Escribe una nueva contraseña"
-                secureTextEntry
-              />
-            ) : null}
-
-            {message ? (
-              <View style={styles.messageBox}>
-                <Ionicons name="information-circle-outline" size={18} color={palette.warmDeep} />
-                <Text style={styles.messageText}>{message}</Text>
-              </View>
-            ) : null}
-
-            <Pressable
-              onPress={handlePrimaryAction}
-              disabled={!canSubmit}
-              style={({ pressed }) => [
-                mode === 'login' && stage === 'form' ? styles.primaryButtonAlt : styles.primaryButton,
-                pressed && canSubmit ? styles.primaryButtonPressed : null,
-                !canSubmit ? styles.primaryButtonDisabled : null,
-              ]}>
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={mode === 'login' && stage === 'form' ? styles.primaryButtonAltText : styles.primaryButtonText}>
-                  {actionLabel(mode, stage)}
-                </Text>
-              )}
-            </Pressable>
-
-            {/* Secondary actions removed - only login flow available */}
-
           </View>
-            </View>
-          </ScrollView>
-        </TouchableWithoutFeedback>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

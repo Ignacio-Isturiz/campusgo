@@ -171,17 +171,14 @@ export default function MarketplaceScreen() {
       <View style={[styles.container, isMobile ? styles.containerMobile : {}, { backgroundColor: theme.background }]}>
         <View style={styles.feedHeader}>
           <Text style={[styles.feedTitle, { color: theme.text }]}>Marketplace</Text>
-          {userRole === 'admin' ? (
-            <View style={styles.headerRight}>
-              <TouchableOpacity style={styles.publishBtn} onPress={() => setModalVisible(true)}>
-                <Text style={styles.publishText}>+ Publicar</Text>
-              </TouchableOpacity>
-            </View>
-          ) : null}
+          <View style={styles.headerRight}>
+            <TouchableOpacity style={styles.publishBtn} onPress={() => setModalVisible(true)}>
+              <Text style={styles.publishText}>+ Publicar</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Quick composer row - alternate way to open create modal */}
-        {userRole === 'admin' ? (
         <TouchableOpacity style={[styles.composeRow, { backgroundColor: colorScheme === 'dark' ? '#141516' : '#ffffff', borderColor: colorScheme === 'dark' ? '#222' : '#eee' }]} activeOpacity={0.7} onPress={() => setModalVisible(true)}>
           {userPhoto ? (
             <Image source={{ uri: userPhoto }} style={styles.composeAvatar} />
@@ -190,7 +187,6 @@ export default function MarketplaceScreen() {
           )}
           <Text style={[styles.composePlaceholder, { color: theme.icon }]}>¿Qué quieres compartir hoy?</Text>
         </TouchableOpacity>
-        ) : null}
 
         <View style={[styles.feedContainer, isMobile ? { paddingHorizontal: 8 } : {}]}>
           <FlatList

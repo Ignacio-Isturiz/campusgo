@@ -12,6 +12,7 @@ const postRoutes = require(
   './routes/postRoutes'
 );
 const authRoutes = require('./routes/authRoutes');
+const scheduleRoutes = require('./routes/scheduleRoutes');
 
 dotenv.config();
 
@@ -66,6 +67,8 @@ app.use(
   '/api/posts',
   postRoutes
 );
+// schedule routes
+app.use('/api/schedule', scheduleRoutes);
 // auth routes (expose endpoints like /auth/login/request-otp)
 app.use('/auth', authRoutes);
 
