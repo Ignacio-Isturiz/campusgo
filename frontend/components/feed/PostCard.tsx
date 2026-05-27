@@ -121,7 +121,7 @@ export default function PostCard({
           source={
             post.userId?.photoUrl
               ? { uri: post.userId.photoUrl }
-              : require('@/assets/images/sinfoto.png')
+              : require('@/assets/images/fotosinperfil.png')
           }
           style={styles.avatar}
         />

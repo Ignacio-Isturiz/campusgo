@@ -294,7 +294,7 @@ export default function InfoScreen() {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           <View style={styles.avatarSection}>
             <Image
-              source={photo ? { uri: photo } : require('@/assets/images/sinfoto.png')}
+              source={photo ? { uri: photo } : require('@/assets/images/fotosinperfil.png')}
               style={styles.avatar}
             />
             <TouchableOpacity style={styles.changePhotoBtn} onPress={handlePickImage}>

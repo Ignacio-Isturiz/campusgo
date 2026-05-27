@@ -164,7 +164,7 @@ export default function MiCuentaScreen() {
           <View style={styles.profileContainer}>
             <View style={styles.avatarWrapper}>
               <Image
-                source={photo ? { uri: photo } : require('@/assets/images/sinfoto.png')}
+                source={photo ? { uri: photo } : require('@/assets/images/fotosinperfil.png')}
                 style={styles.avatar}
               />
             </View>

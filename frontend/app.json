@@ -19,7 +19,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.ignacio2304.frontend"
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
@@ -45,7 +46,11 @@
       "reactCompiler": false
     },
     "extra": {
-      "anthropicApiKey": "YOUR_ANTHROPIC_API_KEY_HERE"
+      "anthropicApiKey": "YOUR_ANTHROPIC_API_KEY_HERE",
+      "router": {},
+      "eas": {
+        "projectId": "7d9dcb68-43fd-4b87-a6e1-68264cd691d0"
+      }
     }
   }
 }
