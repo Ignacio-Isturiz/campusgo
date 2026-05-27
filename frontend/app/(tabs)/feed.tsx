@@ -12,6 +12,7 @@ import {
   Text,
   Alert,
   Image,
+  RefreshControl,
 } from 'react-native';
 
 import PostCard from '@/components/feed/PostCard';
@@ -21,6 +22,7 @@ import { Platform, useWindowDimensions } from 'react-native';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import CreatePostModal from '@/components/feed/CreatePostModal';
 
@@ -38,6 +40,7 @@ import { getUser } from '@/src/utils/storage';
 import { on as onEvent } from '@/src/utils/events';
 
 export default function FeedScreen() {
+  const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const isMobile = width < 680;
   const colorScheme = useColorScheme() ?? 'light';
@@ -53,46 +56,53 @@ export default function FeedScreen() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [userPhoto, setUserPhoto] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadData = useCallback(async () => {
+    try {
+      const savedToken = await getToken();
+      if (!savedToken) return;
+
+      setToken(savedToken);
+
+      const savedUser = await getUser();
+      let localPhoto: string | null = null;
+      let localUserId: string | null = null;
+      if (savedUser) {
+        localUserId = savedUser.id || savedUser._id;
+        if (localUserId) setCurrentUserId(localUserId);
+        localPhoto = savedUser.photoUrl || savedUser.photo || savedUser.avatar || null;
+        if (localPhoto) setUserPhoto(localPhoto);
+        if (savedUser.role) setUserRole(savedUser.role);
+      }
+
+      const data = await getFeed(savedToken);
+      let posts = Array.isArray(data) ? data.filter((p: any) => !p.isMarketplace && !p.isBienestar) : [];
+      if (localPhoto && localUserId) {
+        posts = posts.map((post: any) => {
+          const postUserId = post.userId && (post.userId.id || post.userId._id);
+          if (postUserId === localUserId) {
+            return { ...post, userId: { ...post.userId, photoUrl: localPhoto } };
+          }
+          return post;
+        });
+      }
+      setPosts(posts);
+    } catch (error) {
+      console.log(error);
+    }
+  }, []);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  }, [loadData]);
 
   useFocusEffect(
     useCallback(() => {
-      const loadData = async () => {
-        try {
-          const savedToken = await getToken();
-          if (!savedToken) return;
-
-          setToken(savedToken);
-
-          const savedUser = await getUser();
-          let localPhoto: string | null = null;
-          let localUserId: string | null = null;
-          if (savedUser) {
-            localUserId = savedUser.id || savedUser._id;
-            if (localUserId) setCurrentUserId(localUserId);
-            localPhoto = savedUser.photoUrl || savedUser.photo || savedUser.avatar || null;
-            if (localPhoto) setUserPhoto(localPhoto);
-            if (savedUser.role) setUserRole(savedUser.role);
-          }
-
-          const data = await getFeed(savedToken);
-          let posts = Array.isArray(data) ? data.filter((p: any) => !p.isMarketplace && !p.isBienestar) : [];
-          if (localPhoto && localUserId) {
-            posts = posts.map((post: any) => {
-              const postUserId = post.userId && (post.userId.id || post.userId._id);
-              if (postUserId === localUserId) {
-                return { ...post, userId: { ...post.userId, photoUrl: localPhoto } };
-              }
-              return post;
-            });
-          }
-          setPosts(posts);
-        } catch (error) {
-          console.log(error);
-        }
-      };
-
       loadData();
-    }, []),
+    }, [loadData]),
   );
 
   useEffect(() => {
@@ -239,7 +249,7 @@ export default function FeedScreen() {
     <View style={styles.page}>
 
       <View style={[styles.container, isMobile ? styles.containerMobile : {}, { backgroundColor: theme.background }]}>
-        <View style={styles.feedHeader}>
+        <View style={[styles.feedHeader, { paddingTop: insets.top + 12 }]}>
           <Text style={[styles.feedTitle, { color: theme.text }]}>Feed</Text>
           <View style={styles.headerRight}>
             <TouchableOpacity style={styles.publishBtn} onPress={() => setModalVisible(true)}>
@@ -279,6 +289,9 @@ export default function FeedScreen() {
               paddingBottom: 120,
             }}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
         />
 
         <CreatePostModal

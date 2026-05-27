@@ -28,7 +28,7 @@ export default function FeedHeader() {
     background: theme.background,
     primary: theme.text,
     secondary: theme.icon,
-    muted: 'rgba(0,0,0,0.4)',
+    muted: theme.muted,
     accent: theme.tint,
   };
   const { width } = useWindowDimensions();
@@ -37,7 +37,7 @@ export default function FeedHeader() {
   const handleLogout = async () => {
     await signOut();
     if (Platform.OS === 'web') {
-      window.location.replace('/');
+      window.location.href = '/';
       return;
     }
     router.replace('/');

@@ -9,6 +9,9 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Alert,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -19,6 +22,8 @@ import { getUser, saveUser, getPhoto, savePhoto } from '@/src/utils/storage';
 import { getToken as getUserToken } from '@/src/utils/storage';
 import { accountPalette, commonStyles } from '@/src/components/account/AccountStyles';
 import { emit } from '@/src/utils/events';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Colors } from '@/constants/theme';
 
 /**
  * Extrae el nombre y apellido del formato nombre.apellido####@unaula.edu.co
@@ -40,45 +45,112 @@ function parseNameFromEmail(email: string): string {
   }
 }
 
-const InputField = ({ label, value, onChangeText, placeholder, multiline = false, editable = false }: any) => (
-  <View style={styles.fieldBlock}>
-    <Text style={styles.label}>{label}</Text>
-    <TextInput
-      style={[styles.input, multiline && styles.textArea]}
-      value={value}
-      onChangeText={onChangeText}
-      editable={editable}
-      selectTextOnFocus={editable}
-      placeholder={placeholder}
-      multiline={multiline}
-      placeholderTextColor="#999"
-    />
-    {multiline && <Text style={styles.charCount}>{value.length}/120</Text>}
-  </View>
-);
+type ProgramOption = {
+  level: 'Pregrado' | 'Posgrado';
+  kind: 'Tecnologia' | 'Universitario' | 'Especializacion' | 'Maestria';
+  name: string;
+};
+
+const PROGRAM_OPTIONS: ProgramOption[] = [
+  { level: 'Pregrado', kind: 'Universitario', name: 'Administracion de Empresas' },
+  { level: 'Pregrado', kind: 'Universitario', name: 'Contaduria Publica' },
+  { level: 'Pregrado', kind: 'Universitario', name: 'Derecho' },
+  { level: 'Pregrado', kind: 'Universitario', name: 'Economia' },
+  { level: 'Pregrado', kind: 'Universitario', name: 'Ingenieria Informatica' },
+  { level: 'Pregrado', kind: 'Universitario', name: 'Ingenieria en Ciencia de Datos e Inteligencia de Negocios' },
+  { level: 'Pregrado', kind: 'Universitario', name: 'Ingenieria Industrial' },
+  { level: 'Pregrado', kind: 'Universitario', name: 'Licenciatura en Ciencias Sociales' },
+  { level: 'Pregrado', kind: 'Tecnologia', name: 'Tecnologia en Desarrollo de Software' },
+  { level: 'Pregrado', kind: 'Tecnologia', name: 'Tecnologia en Entrenamiento Deportivo' },
+  { level: 'Posgrado', kind: 'Especializacion', name: 'Alta Gerencia' },
+  { level: 'Posgrado', kind: 'Especializacion', name: 'Ciberseguridad' },
+  { level: 'Posgrado', kind: 'Especializacion', name: 'Contratacion Estatal' },
+  { level: 'Posgrado', kind: 'Especializacion', name: 'Cultura Politica' },
+  { level: 'Posgrado', kind: 'Especializacion', name: 'Derecho Administrativo' },
+  { level: 'Posgrado', kind: 'Especializacion', name: 'Derecho Comercial' },
+  { level: 'Posgrado', kind: 'Especializacion', name: 'Derecho de Familia' },
+  { level: 'Posgrado', kind: 'Especializacion', name: 'Derecho Minero y Ambiental' },
+  { level: 'Posgrado', kind: 'Especializacion', name: 'Derecho Procesal Penal' },
+  { level: 'Posgrado', kind: 'Especializacion', name: 'Gerencia Deportiva' },
+  { level: 'Posgrado', kind: 'Especializacion', name: 'Gerencia de Mercadeo' },
+  { level: 'Posgrado', kind: 'Especializacion', name: 'Gerencia Financiera' },
+  { level: 'Posgrado', kind: 'Especializacion', name: 'Gerencia Logistica' },
+  { level: 'Posgrado', kind: 'Especializacion', name: 'Legislacion Tributaria' },
+  { level: 'Posgrado', kind: 'Especializacion', name: 'Politicas Publicas para el Desarrollo' },
+  { level: 'Posgrado', kind: 'Especializacion', name: 'Regimenes Disciplinarios' },
+  { level: 'Posgrado', kind: 'Especializacion', name: 'Responsabilidad Civil y del Estado' },
+  { level: 'Posgrado', kind: 'Especializacion', name: 'Revision Fiscal' },
+  { level: 'Posgrado', kind: 'Especializacion', name: 'Sostenibilidad y Nuevas Economias' },
+  { level: 'Posgrado', kind: 'Especializacion', name: 'Analitica de Datos' },
+  { level: 'Posgrado', kind: 'Especializacion', name: 'Derecho Laboral y Seguridad Social' },
+  { level: 'Posgrado', kind: 'Maestria', name: 'Derecho Administrativo' },
+  { level: 'Posgrado', kind: 'Maestria', name: 'Derecho Procesal Penal y Teoria del Delito' },
+  { level: 'Posgrado', kind: 'Maestria', name: 'Educacion y Derechos Humanos' },
+  { level: 'Posgrado', kind: 'Maestria', name: 'Gerencia' },
+  { level: 'Posgrado', kind: 'Maestria', name: 'Tributacion y Derecho Tributario' },
+];
+
+const PROGRAM_SECTIONS = [
+  { level: 'Pregrado', kind: 'Tecnologia', title: 'Pregrado / Tecnologia' },
+  { level: 'Pregrado', kind: 'Universitario', title: 'Pregrado / Universitario' },
+  { level: 'Posgrado', kind: 'Especializacion', title: 'Posgrado / Especializacion' },
+  { level: 'Posgrado', kind: 'Maestria', title: 'Posgrado / Maestria' },
+];
+
+const formatProgram = (opt: ProgramOption) => `${opt.level} / ${opt.kind} / ${opt.name}`;
+
+const InputField = ({ label, value, onChangeText, placeholder, multiline = false, editable = false, keyboardType }: any) => {
+  const colorScheme = useColorScheme() ?? 'light';
+  const theme = Colors[colorScheme] || Colors.light;
+  return (
+    <View style={styles.fieldBlock}>
+      <Text style={[styles.label, { color: theme.textMuted }]}>{label}</Text>
+      <TextInput
+        style={[
+          styles.input,
+          { color: theme.text, backgroundColor: theme.surfaceAlt, borderColor: theme.border },
+          multiline && styles.textArea,
+        ]}
+        value={value}
+        onChangeText={onChangeText}
+        editable={editable}
+        selectTextOnFocus={editable}
+        placeholder={placeholder}
+        multiline={multiline}
+        placeholderTextColor={theme.textMuted}
+        keyboardType={keyboardType}
+      />
+      {multiline && <Text style={[styles.charCount, { color: theme.textMuted }]}>{value.length}/120</Text>}
+    </View>
+  );
+};
 
 export default function InfoScreen() {
   const [form, setForm] = useState({
-    name: 'Juan David Pérez',
-    email: 'correo@unaula.edu.co',
-    program: 'Ingeniería de Sistemas',
-    semester: '6° semestre',
-    description: 'Apasionado por la tecnología y el desarrollo de software.',
+    name: '',
+    email: '',
+    program: '',
+    semester: '',
+    description: '',
     phone: '',
   });
   // Load persisted user and ensure fields are not editable
   const [photo, setPhoto] = useState<string | null>(null);
+  const [pendingPhoto, setPendingPhoto] = useState<{ base64: string; fileName: string } | null>(null);
+  const [programOpen, setProgramOpen] = useState(false);
+  const colorScheme = useColorScheme() ?? 'light';
+  const theme = Colors[colorScheme] || Colors.light;
 
   const loadData = async () => {
     const user = await getUser();
     const savedPhoto = await getPhoto();
 
     if (user && user.email) {
-      const suggestedName = parseNameFromEmail(user.email);
+      const displayName = user.displayName || parseNameFromEmail(user.email);
       setForm((prev) => ({
         ...prev,
         email: user.email,
-        name: prev.name === 'Juan David Pérez' ? (suggestedName || prev.name) : prev.name,
+        name: prev.name || displayName,
         phone: user.phone || '',
       }));
     }
@@ -96,6 +168,20 @@ export default function InfoScreen() {
     }, []),
   );
 
+  async function uriToBase64(u: string) {
+    const resp = await fetch(u);
+    const blob = await resp.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        resolve(dataUrl.split(',')[1]);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
   const handlePickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
@@ -108,78 +194,51 @@ export default function InfoScreen() {
       const uri = result.assets[0].uri;
       setPhoto(uri);
       await savePhoto(uri);
-      // Upload base64 to backend so it persists and is available on other devices
+      // Convert to base64 and store in state; actual upload happens on "Guardar"
       try {
-        const token = await getUserToken();
-        if (token) {
-          async function uriToBase64(u: string) {
-            if (Platform.OS === 'web') {
-              const resp = await fetch(u);
-              const blob = await resp.blob();
-              return await new Promise<string>((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                  const dataUrl = reader.result as string;
-                  resolve(dataUrl.split(',')[1]);
-                };
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
-              });
-            }
-            const { readAsStringAsync } = await import('expo-file-system');
-            return await readAsStringAsync(u, { encoding: 'base64' });
-          }
-
-          const base64 = await uriToBase64(uri);
-          const fileName = `profile_${Date.now()}.jpg`;
-
-          const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
-          const r = await fetch(`${API_URL}/auth/profile/photo`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ base64, fileName }),
-          });
-
-          if (r.ok) {
-            const data = await r.json();
-            if (data.user && data.user.photoUrl) {
-              await savePhoto(data.user.photoUrl);
-              setPhoto(data.user.photoUrl);
-              // update saved user object so photoUrl persists when user hits Guardar
-              try {
-                const stored = await getUser();
-                if (stored) {
-                  const updated = { ...stored, photoUrl: data.user.photoUrl };
-                  await saveUser(updated);
-                }
-              } catch (e) {
-                // non-fatal
-                console.warn('Could not update saved user with photoUrl', e);
-              }
-              emit('photo:changed', data.user.photoUrl);
-            }
-          }
-        }
+        const base64 = await uriToBase64(uri);
+        const fileName = `profile_${Date.now()}.jpg`;
+        setPendingPhoto({ base64, fileName });
       } catch (err) {
-        console.warn('Could not upload photo to backend:', err);
+        console.warn('Could not convert photo to base64:', err);
       }
     }
   };
 
   const handleSave = async () => {
-    // Merge form data into existing saved user to avoid wiping other fields (eg. photoUrl)
     try {
       const stored = await getUser();
       const merged = stored ? { ...stored, ...form } : { ...form };
 
-      // send phone/displayName to backend if logged in
       try {
         const token = await getUserToken();
         if (token) {
           const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
+
+          // 1. Upload photo if there's a pending one
+          if (pendingPhoto) {
+            const photoRes = await fetch(`${API_URL}/auth/profile/photo`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify(pendingPhoto),
+            });
+
+            if (photoRes.ok) {
+              const photoData = await photoRes.json();
+              if (photoData.user?.photoUrl) {
+                merged.photoUrl = photoData.user.photoUrl;
+                await savePhoto(photoData.user.photoUrl);
+                setPhoto(photoData.user.photoUrl);
+                emit('photo:changed', photoData.user.photoUrl);
+              }
+            }
+            setPendingPhoto(null);
+          }
+
+          // 2. Save profile (displayName, phone)
           const r = await fetch(`${API_URL}/auth/profile`, {
             method: 'POST',
             headers: {
@@ -192,7 +251,12 @@ export default function InfoScreen() {
           if (r.ok) {
             const data = await r.json();
             if (data.user) {
-              await saveUser(data.user);
+              const userToSave = { ...data.user };
+              // preserve the photoUrl we just uploaded
+              if (merged.photoUrl && data.user.photoUrl !== merged.photoUrl) {
+                userToSave.photoUrl = merged.photoUrl;
+              }
+              await saveUser(userToSave);
             } else {
               await saveUser(merged);
             }
@@ -206,21 +270,20 @@ export default function InfoScreen() {
         await saveUser(merged);
       }
     } catch (e) {
-      // fallback: save form only
       await saveUser(form);
     }
-    router.back();
+    router.replace('/(tabs)/mi-cuenta')
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color={accountPalette.text} />
+        <TouchableOpacity onPress={() => router.replace('/(tabs)/mi-cuenta')} style={styles.backBtn}>
+          <Ionicons name="chevron-back" size={24} color={theme.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Mi información</Text>
+        <Text style={[styles.headerTitle, { color: theme.text }]}>Mi información</Text>
         <TouchableOpacity onPress={handleSave}>
-          <Text style={styles.saveBtnText}>Guardar</Text>
+          <Text style={[styles.saveBtnText, { color: theme.tint }]}>Guardar</Text>
         </TouchableOpacity>
       </View>
 
@@ -235,7 +298,7 @@ export default function InfoScreen() {
               style={styles.avatar}
             />
             <TouchableOpacity style={styles.changePhotoBtn} onPress={handlePickImage}>
-              <Text style={styles.changePhotoText}>Cambiar foto</Text>
+              <Text style={[styles.changePhotoText, { color: theme.tint }]}>Cambiar foto</Text>
             </TouchableOpacity>
           </View>
 
@@ -252,18 +315,35 @@ export default function InfoScreen() {
               onChangeText={(text: string) => setForm({ ...form, email: text })}
               placeholder="correo@unaula.edu.co"
             />
-            <InputField
-              label="Programa académico"
-              value={form.program}
-              onChangeText={(text: string) => setForm({ ...form, program: text })}
-              placeholder="Ej. Ingeniería de Sistemas"
-            />
+            <View style={styles.fieldBlock}>
+              <Text style={[styles.label, { color: theme.textMuted }]}>Programa academico</Text>
+              <TouchableOpacity
+                style={[
+                  styles.selectInput,
+                  { backgroundColor: theme.surfaceAlt, borderColor: theme.border },
+                ]}
+                onPress={() => setProgramOpen(true)}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.selectText,
+                    { color: form.program ? theme.text : theme.textMuted },
+                  ]}
+                  numberOfLines={2}
+                >
+                  {form.program || 'Selecciona un programa'}
+                </Text>
+                <Ionicons name="chevron-down" size={18} color={theme.textMuted} />
+              </TouchableOpacity>
+            </View>
             <InputField
               label="Teléfono"
               value={form.phone}
-              onChangeText={(text: string) => setForm({ ...form, phone: text })}
-              placeholder="Ej. +573001234567"
+              onChangeText={(text: string) => setForm({ ...form, phone: text.replace(/[^0-9]/g, '') })}
+              placeholder="Ej. 573001234567"
               editable
+              keyboardType="phone-pad"
             />
             <InputField
               label="Semestre"
@@ -281,6 +361,52 @@ export default function InfoScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal visible={programOpen} transparent animationType="fade">
+        <Pressable style={styles.programOverlay} onPress={() => setProgramOpen(false)}>
+          <Pressable style={[styles.programSheet, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+            <View style={styles.programHeader}>
+              <Text style={[styles.programTitle, { color: theme.text }]}>Programas academicos</Text>
+              <TouchableOpacity onPress={() => setProgramOpen(false)}>
+                <Ionicons name="close" size={20} color={theme.textMuted} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {PROGRAM_SECTIONS.map((section) => {
+                const items = PROGRAM_OPTIONS.filter(
+                  (opt) => opt.level === section.level && opt.kind === section.kind,
+                );
+                return (
+                  <View key={section.title} style={styles.programSection}>
+                    <Text style={[styles.programSectionTitle, { color: theme.textMuted }]}>{section.title}</Text>
+                    {items.map((opt) => {
+                      const value = formatProgram(opt);
+                      const isSelected = form.program === value;
+                      return (
+                        <TouchableOpacity
+                          key={value}
+                          style={[
+                            styles.programOption,
+                            { borderColor: theme.border },
+                            isSelected && { backgroundColor: theme.surfaceAlt, borderColor: theme.tint },
+                          ]}
+                          onPress={() => {
+                            setForm((prev) => ({ ...prev, program: value }));
+                            setProgramOpen(false);
+                          }}
+                        >
+                          <Text style={[styles.programOptionText, { color: theme.text }]}>{value}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                );
+              })}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -361,6 +487,67 @@ const styles = StyleSheet.create({
     height: 100,
     paddingTop: 16,
     textAlignVertical: 'top',
+  },
+  selectInput: {
+    minHeight: 56,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  selectText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  programOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  programSheet: {
+    width: '100%',
+    maxWidth: 620,
+    maxHeight: '85%',
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+  },
+  programHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  programTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  programSection: {
+    marginBottom: 14,
+  },
+  programSectionTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    marginBottom: 8,
+  },
+  programOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  programOptionText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   charCount: {
     alignSelf: 'flex-end',

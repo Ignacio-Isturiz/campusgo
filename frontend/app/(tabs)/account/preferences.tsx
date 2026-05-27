@@ -11,11 +11,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { accountPalette } from '@/src/components/account/AccountStyles';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Colors } from '@/constants/theme';
 
 export default function PreferencesScreen() {
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [language, setLanguage] = useState('Español');
   const [loaded, setLoaded] = useState(false);
+  const colorScheme = useColorScheme() ?? 'light';
+  const ui = Colors[colorScheme] || Colors.light;
 
   useEffect(() => {
     (async () => {
@@ -28,43 +32,51 @@ export default function PreferencesScreen() {
   }, []);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: ui.background }]} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color={accountPalette.text} />
+        <TouchableOpacity onPress={() => router.replace('/(tabs)/mi-cuenta')}>
+          <Ionicons name="chevron-back" size={24} color={ui.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Preferencias</Text>
+        <Text style={[styles.headerTitle, { color: ui.text }]}>Preferencias</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {/* Tema */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Tema</Text>
+          <Text style={[styles.sectionTitle, { color: ui.text }]}>Tema</Text>
           <View style={styles.themeRow}>
             <TouchableOpacity
-              style={[styles.themeBox, theme === 'light' && styles.themeBoxActive]}
+              style={[
+                styles.themeBox,
+                { backgroundColor: ui.surfaceAlt, borderColor: ui.border },
+                theme === 'light' && [styles.themeBoxActive, { backgroundColor: ui.surface, borderColor: ui.tint }],
+              ]}
               onPress={async () => {
                 setTheme('light');
                 await import('@/src/utils/storage').then((m) => m.savePreferences('light'));
               }}
             >
-              <Ionicons name="sunny-outline" size={24} color={theme === 'light' ? accountPalette.text : accountPalette.textMuted} />
-              <Text style={[styles.themeLabel, theme === 'light' && styles.themeLabelActive]}>Claro</Text>
+              <Ionicons name="sunny-outline" size={24} color={theme === 'light' ? ui.text : ui.textMuted} />
+              <Text style={[styles.themeLabel, { color: ui.textMuted }, theme === 'light' && styles.themeLabelActive, theme === 'light' && { color: ui.text }]}>Claro</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.themeBox, theme === 'dark' && styles.themeBoxActive]}
+              style={[
+                styles.themeBox,
+                { backgroundColor: ui.surfaceAlt, borderColor: ui.border },
+                theme === 'dark' && [styles.themeBoxActive, { backgroundColor: ui.surface, borderColor: ui.tint }],
+              ]}
               onPress={async () => {
                 setTheme('dark');
                 await import('@/src/utils/storage').then((m) => m.savePreferences('dark'));
               }}
             >
-              <Ionicons name="moon-outline" size={24} color={theme === 'dark' ? accountPalette.text : accountPalette.textMuted} />
-              <Text style={[styles.themeLabel, theme === 'dark' && styles.themeLabelActive]}>Oscuro</Text>
+              <Ionicons name="moon-outline" size={24} color={theme === 'dark' ? ui.text : ui.textMuted} />
+              <Text style={[styles.themeLabel, { color: ui.textMuted }, theme === 'dark' && styles.themeLabelActive, theme === 'dark' && { color: ui.text }]}>Oscuro</Text>
               {theme === 'dark' && (
                 <View style={styles.checkIcon}>
-                  <Ionicons name="checkmark-circle" size={18} color={accountPalette.primary} />
+                  <Ionicons name="checkmark-circle" size={18} color={ui.tint} />
                 </View>
               )}
             </TouchableOpacity>
@@ -73,18 +85,18 @@ export default function PreferencesScreen() {
 
         {/* Idioma */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Idioma</Text>
-          <TouchableOpacity style={styles.languageBtn}>
+          <Text style={[styles.sectionTitle, { color: ui.text }]}>Idioma</Text>
+          <TouchableOpacity style={[styles.languageBtn, { backgroundColor: ui.surfaceAlt, borderColor: ui.border }]}>
             <View style={styles.languageLeft}>
-              <Ionicons name="globe-outline" size={22} color={accountPalette.text} />
-              <Text style={styles.languageText}>{language}</Text>
+              <Ionicons name="globe-outline" size={22} color={ui.text} />
+              <Text style={[styles.languageText, { color: ui.text }]}>{language}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={accountPalette.textMuted} />
+            <Ionicons name="chevron-forward" size={20} color={ui.textMuted} />
           </TouchableOpacity>
         </View>
 
         {/* Color institucional removed per request */}
-        <TouchableOpacity style={[styles.savePrefsBtn]} onPress={async () => {
+        <TouchableOpacity style={[styles.savePrefsBtn, { backgroundColor: ui.tint }]} onPress={async () => {
             await import('@/src/utils/storage').then((m) => m.savePreferences(theme));
           }}>
           <Text style={styles.savePrefsText}>Guardar preferencias</Text>

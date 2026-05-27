@@ -9,26 +9,6 @@ const classBlockSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  code: {
-    type: String,
-    default: '',
-  },
-  room: {
-    type: String,
-    default: '',
-  },
-  teacher: {
-    type: String,
-    default: '',
-  },
-  group: {
-    type: String,
-    default: '',
-  },
-  credits: {
-    type: Number,
-    default: 3,
-  },
   color: {
     type: String,
     default: '#5B8DEF',

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, StyleSheet, FlatList, TouchableOpacity, Text, TextInput, Image, useWindowDimensions } from 'react-native';
+import { View, StyleSheet, FlatList, TouchableOpacity, Text, TextInput, Image, useWindowDimensions, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import PostCard from '@/components/feed/PostCard';
 import { Colors } from '@/constants/theme';
@@ -27,6 +27,7 @@ export default function BienestarScreen() {
   const [assignEmail, setAssignEmail] = useState('');
   const [assignMessage, setAssignMessage] = useState('');
   const [assignLoading, setAssignLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const handleAssignRole = async () => {
     const email = assignEmail.trim().toLowerCase();
@@ -47,44 +48,50 @@ export default function BienestarScreen() {
     }
   };
 
+  const loadData = useCallback(async () => {
+    try {
+      const savedToken = await getToken();
+      if (!savedToken) return;
+      setToken(savedToken);
+
+      const savedUser = await getUser();
+      let localPhoto: string | null = null;
+      let localUserId: string | null = null;
+      if (savedUser) {
+        localUserId = savedUser.id || savedUser._id;
+        if (localUserId) setCurrentUserId(localUserId);
+        localPhoto = savedUser.photoUrl || savedUser.photo || savedUser.avatar || null;
+        if (localPhoto) setUserPhoto(localPhoto);
+        if (savedUser.role) setUserRole(savedUser.role);
+      }
+
+      const data = await getBienestarPosts(savedToken);
+      let posts = Array.isArray(data) ? data : [];
+      if (localPhoto && localUserId) {
+        posts = posts.map((post: any) => {
+          const postUserId = post.userId && (post.userId.id || post.userId._id);
+          if (postUserId === localUserId) {
+            return { ...post, userId: { ...post.userId, photoUrl: localPhoto } };
+          }
+          return post;
+        });
+      }
+      setPosts(posts);
+    } catch (e) {
+      console.log('bienestar init error', e);
+    }
+  }, []);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  }, [loadData]);
+
   useFocusEffect(
     useCallback(() => {
-      const loadData = async () => {
-        try {
-          const savedToken = await getToken();
-          if (!savedToken) return;
-          setToken(savedToken);
-
-          const savedUser = await getUser();
-          let localPhoto: string | null = null;
-          let localUserId: string | null = null;
-          if (savedUser) {
-            localUserId = savedUser.id || savedUser._id;
-            if (localUserId) setCurrentUserId(localUserId);
-            localPhoto = savedUser.photoUrl || savedUser.photo || savedUser.avatar || null;
-            if (localPhoto) setUserPhoto(localPhoto);
-            if (savedUser.role) setUserRole(savedUser.role);
-          }
-
-          const data = await getBienestarPosts(savedToken);
-          let posts = Array.isArray(data) ? data : [];
-          if (localPhoto && localUserId) {
-            posts = posts.map((post: any) => {
-              const postUserId = post.userId && (post.userId.id || post.userId._id);
-              if (postUserId === localUserId) {
-                return { ...post, userId: { ...post.userId, photoUrl: localPhoto } };
-              }
-              return post;
-            });
-          }
-          setPosts(posts);
-        } catch (e) {
-          console.log('bienestar init error', e);
-        }
-      };
-
       loadData();
-    }, []),
+    }, [loadData]),
   );
 
   useEffect(() => {
@@ -188,7 +195,7 @@ export default function BienestarScreen() {
           <Text style={[styles.feedTitle, { color: theme.text }]}>Bienestar</Text>
           {canPublish ? (
             <View style={styles.headerRight}>
-              <TouchableOpacity style={styles.publishBtn} onPress={() => setModalVisible(true)}>
+              <TouchableOpacity style={[styles.publishBtn, { backgroundColor: theme.tint }]} onPress={() => setModalVisible(true)}>
                 <Text style={styles.publishText}>+ Publicar</Text>
               </TouchableOpacity>
             </View>
@@ -196,20 +203,20 @@ export default function BienestarScreen() {
         </View>
 
         {userRole === 'admin' ? (
-          <View style={[styles.adminPanel, { backgroundColor: colorScheme === 'dark' ? '#1a1a1a' : '#FFF8F0', borderColor: colorScheme === 'dark' ? '#333' : '#F0DCC8' }]}>
+          <View style={[styles.adminPanel, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}> 
             <Text style={[styles.adminTitle, { color: theme.text }]}>Panel Admin — Asignar rol bienestar</Text>
             <View style={styles.adminRow}>
               <TextInput
                 placeholder="correo@unaula.edu.co"
-                placeholderTextColor="#999"
+                placeholderTextColor={theme.textMuted}
                 value={assignEmail}
                 onChangeText={(v) => { setAssignEmail(v); setAssignMessage(''); }}
-                style={[styles.adminInput, { color: theme.text, borderColor: colorScheme === 'dark' ? '#444' : '#ddd' }]}
+                style={[styles.adminInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surface }]}
                 autoCapitalize="none"
                 keyboardType="email-address"
               />
               <TouchableOpacity
-                style={[styles.adminBtn, assignLoading ? { opacity: 0.5 } : {}]}
+                style={[styles.adminBtn, { backgroundColor: theme.tint }, assignLoading ? { opacity: 0.5 } : {}]}
                 onPress={handleAssignRole}
                 disabled={assignLoading}
               >
@@ -223,13 +230,17 @@ export default function BienestarScreen() {
         ) : null}
 
         {canPublish ? (
-          <TouchableOpacity style={[styles.composeRow, { backgroundColor: colorScheme === 'dark' ? '#141516' : '#ffffff', borderColor: colorScheme === 'dark' ? '#222' : '#eee' }]} activeOpacity={0.7} onPress={() => setModalVisible(true)}>
+          <TouchableOpacity
+            style={[styles.composeRow, { backgroundColor: theme.surface, borderColor: theme.border }]}
+            activeOpacity={0.7}
+            onPress={() => setModalVisible(true)}
+          >
             {userPhoto ? (
               <Image source={{ uri: userPhoto }} style={styles.composeAvatar} />
             ) : (
               <Ionicons name="person-circle" size={36} color="#888" />
             )}
-            <Text style={[styles.composePlaceholder, { color: theme.icon }]}>¿Qué novedades de bienestar tienes?</Text>
+            <Text style={[styles.composePlaceholder, { color: theme.textMuted }]}>¿Qué novedades de bienestar tienes?</Text>
           </TouchableOpacity>
         ) : null}
 
@@ -240,6 +251,9 @@ export default function BienestarScreen() {
             keyExtractor={item => item._id}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.feedContent}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
           />
         </View>
 

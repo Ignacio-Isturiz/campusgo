@@ -1,21 +1,24 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Platform, View, Text, StyleSheet, Pressable, useWindowDimensions } from 'react-native';
 import { Tabs, Slot, Link, router } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { getToken } from '@/src/utils/storage';
+import { getToken, getUser } from '@/src/utils/storage';
 
-const SCREENS = [
-  { name: 'feed', title: 'feed', icon: 'newspaper-outline', iconFocused: 'newspaper' },
-  { name: 'marketplace', title: 'marketplace', icon: 'storefront-outline', iconFocused: 'storefront' },
-  { name: 'bienestar', title: 'bienestar', icon: 'medkit-outline', iconFocused: 'medkit' },
-  { name: 'horario', title: 'Horario', icon: 'calendar-outline', iconFocused: 'calendar' },
-  { name: 'mi-cuenta', title: 'Mi cuenta', icon: 'person-outline', iconFocused: 'person' },
+const ALL_SCREENS = [
+  { name: 'feed', title: 'feed', icon: 'newspaper-outline', iconFocused: 'newspaper', roles: ['admin', 'bienestar', 'estudiante'] },
+  { name: 'marketplace', title: 'marketplace', icon: 'storefront-outline', iconFocused: 'storefront', roles: ['admin', 'bienestar', 'estudiante'] },
+  { name: 'bienestar', title: 'bienestar', icon: 'medkit-outline', iconFocused: 'medkit', roles: ['admin', 'bienestar'] },
+  { name: 'horario', title: 'Horario', icon: 'calendar-outline', iconFocused: 'calendar', roles: ['admin', 'bienestar', 'estudiante'] },
+  { name: 'mi-cuenta', title: 'Mi cuenta', icon: 'person-outline', iconFocused: 'person', roles: ['admin', 'bienestar', 'estudiante'] },
 ];
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const theme = Colors[colorScheme ?? 'light'];
 
   useEffect(() => {
     (async () => {
@@ -26,23 +29,48 @@ export default function TabLayout() {
     })();
   }, []);
 
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        getToken().then(token => {
+          if (!token) router.replace('/');
+        });
+      }
+    };
+
+    window.addEventListener('pageshow', onPageShow);
+    return () => window.removeEventListener('pageshow', onPageShow);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        const user = await getUser();
+        if (user?.role) setUserRole(user.role);
+      })();
+    }, [])
+  );
+
+  const screens = ALL_SCREENS;
+
   // Always use bottom Tabs for navigation (sidebar removed per design).
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,
-        tabBarActiveTintColor: '#111',
-        tabBarInactiveTintColor: '#888',
+        tabBarActiveTintColor: theme.tint,
+        tabBarInactiveTintColor: theme.tabIconDefault,
         tabBarStyle: {
-          backgroundColor: Colors[colorScheme ?? 'light'].background,
-          flexDirection: 'row-reverse',
-          borderTopColor: '#ececec',
+          backgroundColor: theme.background,
+          borderTopColor: theme.border,
           borderTopWidth: 1,
           height: 58,
         },
       }}>
-      {SCREENS.map((s) => (
+      {screens.map((s) => (
         <Tabs.Screen
           key={s.name}
           name={s.name}
@@ -65,7 +93,6 @@ export default function TabLayout() {
       <Tabs.Screen name="account/academic" options={{ href: null }} />
       <Tabs.Screen name="account/average-calc" options={{ href: null }} />
       <Tabs.Screen name="account/final-calc" options={{ href: null }} />
-      <Tabs.Screen name="account/security" options={{ href: null }} />
     </Tabs>
   );
 }

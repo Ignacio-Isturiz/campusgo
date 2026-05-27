@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Platform,
   StatusBar,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -16,6 +17,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { getUser, signOut, getPhoto, clearAll } from '@/src/utils/storage';
 import { on as onEvent } from '@/src/utils/events';
 import { accountPalette } from '@/src/components/account/AccountStyles';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Colors } from '@/constants/theme';
 
 /**
  * Extrae el nombre y apellido del formato nombre.apellido####@unaula.edu.co
@@ -40,8 +43,13 @@ function parseNameFromEmail(email: string): string {
 export default function MiCuentaScreen() {
   const [user, setUser] = useState<any>(null);
   const [photo, setPhoto] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const colorScheme = useColorScheme() ?? 'light';
+  const theme = Colors[colorScheme] || Colors.light;
+  const isDark = colorScheme === 'dark';
+  const headerOverlay = isDark ? 'rgba(0,0,0,0.55)' : 'rgba(255, 122, 0, 0.7)';
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     const userData = await getUser();
     setUser(userData);
     // Load photo from user data first, then fallback to saved photo
@@ -55,12 +63,18 @@ export default function MiCuentaScreen() {
         setPhoto(null);
       }
     }
-  };
+  }, []);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  }, [loadData]);
 
   useFocusEffect(
     useCallback(() => {
       loadData();
-    }, []),
+    }, [loadData]),
   );
 
   useEffect(() => {
@@ -88,7 +102,7 @@ export default function MiCuentaScreen() {
     setPhoto(null);
 
     if (Platform.OS === 'web') {
-      window.location.replace('/');
+      window.location.href = '/';
       return;
     }
     // For native platforms, navigate to loading which checks auth
@@ -118,39 +132,33 @@ export default function MiCuentaScreen() {
       icon: 'school-outline',
       route: '/account/academic',
     },
-    {
-      id: 'security',
-      title: 'Seguridad',
-      subtitle: 'Contraseña y sesión',
-      icon: 'shield-checkmark-outline',
-      route: '/account/security',
-    },
   ];
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      <StatusBar barStyle="light-content" />
-      <ScrollView showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['bottom']}>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+      <ScrollView showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         {/* Header Section */}
-        <View style={styles.header}>
+        <View style={[styles.header, { backgroundColor: theme.tint }]}>
           <Image
             source={{ uri: 'https://images.unsplash.com/photo-1541339907198-e08756ebafe3?w=800&q=80' }}
             style={styles.headerBg}
             blurRadius={2}
           />
-          <View style={styles.headerOverlay} />
+          <View style={[styles.headerOverlay, { backgroundColor: headerOverlay }]} />
           
           <View style={styles.headerTop}>
             <View style={styles.brandContainer}>
               <Image 
-                source={require('@/assets/images/ESCUDO-UNAULA.png')} 
+                source={require('@/assets/images/UNAULA-SIN-FONDO.png')} 
                 style={styles.logoImage} 
               />
               <Text style={styles.brandText}>UNAULA</Text>
             </View>
-            <TouchableOpacity style={styles.settingsBtn}>
-              <Ionicons name="settings-sharp" size={22} color="#FFF" />
-            </TouchableOpacity>
           </View>
 
           <View style={styles.profileContainer}>
@@ -161,11 +169,11 @@ export default function MiCuentaScreen() {
               />
             </View>
             <Text style={styles.userName}>
-              {user?.email ? parseNameFromEmail(user.email) : 'Estudiante UNAULA'}
+              {user?.displayName || (user?.email ? parseNameFromEmail(user.email) : '')}
             </Text>
-            <Text style={styles.userEmail}>{user?.email || 'correo@unaula.edu.co'}</Text>
+            <Text style={styles.userEmail}>{user?.email || ''}</Text>
             <View style={styles.roleBadge}>
-              <Text style={styles.roleText}>{user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : 'Estudiante'}</Text>
+              <Text style={styles.roleText}>{user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : ''}</Text>
             </View>
           </View>
         </View>
@@ -175,25 +183,28 @@ export default function MiCuentaScreen() {
           {menuItems.map((item) => (
             <TouchableOpacity
               key={item.id}
-              style={styles.menuItem}
+              style={[styles.menuItem, { backgroundColor: theme.surface, borderColor: theme.border }]}
               onPress={() => router.push(item.route as any)}
             >
               <View style={styles.menuItemLeft}>
-                <View style={styles.iconBox}>
-                  <Ionicons name={item.icon as any} size={22} color={accountPalette.text} />
+                <View style={[styles.iconBox, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}>
+                  <Ionicons name={item.icon as any} size={22} color={theme.text} />
                 </View>
                 <View>
-                  <Text style={styles.menuTitle}>{item.title}</Text>
-                  <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+                  <Text style={[styles.menuTitle, { color: theme.text }]}>{item.title}</Text>
+                  <Text style={[styles.menuSubtitle, { color: theme.textMuted }]}>{item.subtitle}</Text>
                 </View>
               </View>
-              <Ionicons name="chevron-forward" size={20} color={accountPalette.textMuted} />
+              <Ionicons name="chevron-forward" size={20} color={theme.textMuted} />
             </TouchableOpacity>
           ))}
 
-          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={20} color={accountPalette.primary} />
-            <Text style={styles.logoutText}>Cerrar sesión</Text>
+          <TouchableOpacity
+            style={[styles.logoutBtn, { backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}
+            onPress={handleLogout}
+          >
+            <Ionicons name="log-out-outline" size={20} color={theme.tint} />
+            <Text style={[styles.logoutText, { color: theme.tint }]}>Cerrar sesión</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -260,9 +271,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#FFF',
   },
-  settingsBtn: {
-    padding: 5,
-  },
   profileContainer: {
     alignItems: 'center',
     marginTop: 10,
@@ -313,6 +321,7 @@ const styles = StyleSheet.create({
     padding: 18,
     borderRadius: 20,
     marginBottom: 15,
+    borderWidth: 1,
   },
   menuItemLeft: {
     flexDirection: 'row',
@@ -331,6 +340,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 5,
     elevation: 2,
+    borderWidth: 1,
   },
   menuTitle: {
     fontSize: 16,

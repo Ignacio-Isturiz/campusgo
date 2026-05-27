@@ -73,7 +73,7 @@ function actionLabel(mode: Mode, stage: Stage) {
   }
 
   if (mode === 'register') {
-    return 'Enviar código de registro';
+    return 'Enviar código';
   }
 
   if (mode === 'forgot') {
@@ -164,7 +164,7 @@ export default function AuthScreen() {
   const { width } = useWindowDimensions();
   const isDesktop = width >= 980;
 
-  const [mode] = useState<Mode>('login');
+  const [mode, setMode] = useState<Mode>('login');
   const [stage, setStage] = useState<Stage>('form');
   const [form, setForm] = useState(initialForm);
   const [challengeId, setChallengeId] = useState('');
@@ -205,16 +205,6 @@ export default function AuthScreen() {
 
     if (!isInstitutionEmail(email)) {
       setMessage(`El correo debe terminar en ${ALLOWED_DOMAIN}`);
-      return;
-    }
-
-    if (mode === 'register' && !form.password.trim()) {
-      setMessage('La contraseña es obligatoria.');
-      return;
-    }
-
-    if (mode === 'register' && form.password !== form.confirmPassword) {
-      setMessage('Las contraseñas no coinciden.');
       return;
     }
 
@@ -316,7 +306,7 @@ export default function AuthScreen() {
             <View style={[styles.hero, isDesktop ? styles.heroDesktop : styles.heroMobile]}>
               <View style={styles.heroCopyCentered}>
                 <View style={styles.logoWrap}>
-                  <Image source={require('@/assets/images/ESCUDO-UNAULA.png')} style={styles.logoLarge} />
+                  <Image source={require('@/assets/images/UNAULA-SIN-FONDO.png')} style={styles.logoLarge} />
                 </View>
                 <Text style={styles.heroBrandTitle}>Universidad Autónoma</Text>
                 <Text style={styles.heroLoginLabel}>Login</Text>
@@ -348,26 +338,6 @@ export default function AuthScreen() {
                 placeholder={`correo@unaula.edu.co`}
                 keyboardType="email-address"
               />
-
-              {mode === 'register' && stage === 'form' ? (
-                <Field
-                  label="Contraseña"
-                  value={form.password}
-                  onChangeText={(text) => setForm((current) => ({ ...current, password: text }))}
-                  placeholder="Ingresa tu contraseña"
-                  secureTextEntry
-                />
-              ) : null}
-
-              {mode === 'register' && stage === 'form' ? (
-                <Field
-                  label="Confirmar contraseña"
-                  value={form.confirmPassword}
-                  onChangeText={(text) => setForm((current) => ({ ...current, confirmPassword: text }))}
-                  placeholder="Repite tu contraseña"
-                  secureTextEntry
-                />
-              ) : null}
 
               {stage !== 'form' ? (
                 <Field
@@ -412,6 +382,18 @@ export default function AuthScreen() {
                   </Text>
                 )}
               </Pressable>
+
+              {mode === 'login' && stage === 'form' ? (
+                <Pressable onPress={() => handleModeChange('register')} style={styles.registerLink}>
+                  <Text style={styles.registerLinkText}>+ Agregar mi cuenta</Text>
+                </Pressable>
+              ) : null}
+
+              {mode === 'register' || stage === 'otp' ? (
+                <Pressable onPress={() => handleModeChange('login')} style={styles.registerLink}>
+                  <Text style={styles.registerLinkText}>← Volver a inicio de sesión</Text>
+                </Pressable>
+              ) : null}
             </View>
           </View>
         </ScrollView>
@@ -872,5 +854,14 @@ const styles = StyleSheet.create({
   helperText: {
     color: palette.muted,
     fontSize: 13,
+  },
+  registerLink: {
+    marginTop: 18,
+    alignItems: 'center',
+  },
+  registerLinkText: {
+    color: palette.warmDeep,
+    fontWeight: '700',
+    fontSize: 15,
   },
 });

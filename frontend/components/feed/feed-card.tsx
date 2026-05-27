@@ -61,10 +61,12 @@ export default function FeedCard({
   const theme = Colors[colorScheme] ?? defaultColors;
   const colors = {
     background: theme.background,
-    surface: theme.background,
+    surface: theme.surface,
+    surfaceAlt: theme.surfaceAlt,
     primary: theme.text,
     secondary: theme.icon,
-    muted: 'rgba(0,0,0,0.4)',
+    muted: theme.muted,
+    border: theme.border,
     accent: theme.tint,
   };
   const [likeAnim] = useState(new Animated.Value(isLiked ? 1 : 0));
@@ -93,17 +95,29 @@ export default function FeedCard({
   });
 
   return (
-    <View style={[styles.card, { marginHorizontal: isMobile ? 0 : 16, backgroundColor: colors.surface }]}>
+    <View
+      style={[
+        styles.card,
+        {
+          marginHorizontal: isMobile ? 0 : 16,
+          backgroundColor: colors.surface,
+          borderBottomColor: colors.border,
+        },
+      ]}
+    >
       {/* Header - Info del usuario */}
       <View style={styles.cardHeader}>
         <View style={styles.userInfo}>
           <Image
             source={{ uri: avatar }}
-            style={styles.avatar}
+            style={[
+              styles.avatar,
+              { backgroundColor: colors.surfaceAlt, borderColor: colors.border },
+            ]}
           />
           <View style={styles.userMeta}>
-            <Text style={styles.authorName}>{author}</Text>
-            <Text style={styles.authorHandle}>{handle}</Text>
+            <Text style={[styles.authorName, { color: colors.primary }]}>{author}</Text>
+            <Text style={[styles.authorHandle, { color: colors.muted }]}>{handle}</Text>
           </View>
         </View>
         <TouchableOpacity
@@ -115,7 +129,7 @@ export default function FeedCard({
       </View>
 
       {/* Imagen principal */}
-      <View style={styles.imageContainer}>
+      <View style={[styles.imageContainer, { backgroundColor: colors.surfaceAlt }]}>
         <Image
           source={{ uri: imageUrl }}
           style={styles.mainImage}
@@ -126,7 +140,7 @@ export default function FeedCard({
       </View>
 
       {/* Acciones principales - Likes, Comments, Shares */}
-      <View style={styles.actionBar}>
+      <View style={[styles.actionBar, { borderBottomColor: colors.border }]}>
         <Animated.View
           style={[
             styles.actionItem,
@@ -154,7 +168,7 @@ export default function FeedCard({
                 color={isLiked ? colors.accent : colors.secondary}
               />
             </Animated.Text>
-            <Text style={styles.actionCount}>{formatCount(likes)}</Text>
+            <Text style={[styles.actionCount, { color: colors.muted }]}>{formatCount(likes)}</Text>
           </TouchableOpacity>
         </Animated.View>
 
@@ -163,7 +177,7 @@ export default function FeedCard({
           activeOpacity={0.7}
         >
           <Ionicons name="chatbubble-outline" size={24} color={colors.secondary} />
-          <Text style={styles.actionCount}>{formatCount(comments)}</Text>
+          <Text style={[styles.actionCount, { color: colors.muted }]}>{formatCount(comments)}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -171,7 +185,7 @@ export default function FeedCard({
           activeOpacity={0.7}
         >
           <Ionicons name="share-social-outline" size={24} color={colors.secondary} />
-          <Text style={styles.actionCount}>{formatCount(shares)}</Text>
+          <Text style={[styles.actionCount, { color: colors.muted }]}>{formatCount(shares)}</Text>
         </TouchableOpacity>
 
         {/* Espaciador */}
@@ -189,7 +203,7 @@ export default function FeedCard({
       {/* Caption y info de likes */}
       <View style={styles.captionSection}>
         <View style={styles.likesInfo}>
-          <Text style={[styles.likesCount, { color: colors.primary }]}>
+          <Text style={[styles.likesCount, { color: colors.secondary }]}> 
             <Text style={[styles.likesBold, { color: colors.primary }]}>{formatCount(likes)} </Text>
             {likes === 1 ? 'me gusta' : 'me gustan'}
           </Text>
@@ -211,13 +225,13 @@ export default function FeedCard({
         </View>
 
         <TouchableOpacity activeOpacity={0.7}>
-          <Text style={[styles.viewMoreComments, { color: colors.secondary }]}>Ver los {formatCount(comments)} comentarios</Text>
+          <Text style={[styles.viewMoreComments, { color: colors.muted }]}>Ver los {formatCount(comments)} comentarios</Text>
         </TouchableOpacity>
       </View>
 
       {/* Footer - Tiempo */}
-      <View style={styles.footer}>
-        <Text style={[styles.timeAgo, { color: colors.secondary }]}>Hace 2 horas</Text>
+      <View style={[styles.footer, { borderTopColor: colors.border }]}>
+        <Text style={[styles.timeAgo, { color: colors.muted }]}>Hace 2 horas</Text>
       </View>
     </View>
   );
@@ -239,7 +253,6 @@ function formatCount(count: number): string {
 const styles = StyleSheet.create({
   card: {
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.04)',
     marginVertical: 0,
   },
 
@@ -261,9 +274,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   userMeta: {
     flex: 1,
@@ -272,11 +283,9 @@ const styles = StyleSheet.create({
   authorName: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.primary,
   },
   authorHandle: {
     fontSize: 12,
-    color: colors.muted,
     marginTop: 2,
   },
   moreButton: {
@@ -286,7 +295,6 @@ const styles = StyleSheet.create({
   // Imagen
   imageContainer: {
     position: 'relative',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
     overflow: 'hidden',
     aspectRatio: 1,
   },
@@ -306,7 +314,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
   },
   actionItem: {
     marginRight: -4,
@@ -323,7 +330,6 @@ const styles = StyleSheet.create({
   },
   actionCount: {
     fontSize: 11,
-    color: colors.muted,
     fontWeight: '500',
   },
 
@@ -337,11 +343,9 @@ const styles = StyleSheet.create({
   },
   likesCount: {
     fontSize: 12,
-    color: colors.secondary,
   },
   likesBold: {
     fontWeight: '700',
-    color: colors.primary,
   },
   captionContainer: {
     flexDirection: 'row',
@@ -349,12 +353,10 @@ const styles = StyleSheet.create({
   },
   caption: {
     fontSize: 12,
-    color: colors.secondary,
     flex: 1,
   },
   viewMoreComments: {
     fontSize: 12,
-    color: colors.muted,
     marginTop: 4,
   },
 
@@ -363,10 +365,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.05)',
   },
   timeAgo: {
     fontSize: 11,
-    color: colors.muted,
   },
 });

@@ -11,8 +11,40 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { accountPalette } from '@/src/components/account/AccountStyles';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Colors } from '@/constants/theme';
+
+type InputFieldProps = {
+  label: string;
+  value: string;
+  onChangeText: (v: string) => void;
+  suffix: string;
+  theme: typeof Colors.light;
+};
+
+function InputField({ label, value, onChangeText, suffix, theme }: InputFieldProps) {
+  return (
+    <View style={styles.inputItem}>
+      <Text style={[styles.inputLabel, { color: theme.text }]}>{label}</Text>
+      <View style={[styles.inputWrapper, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        <TextInput
+          style={[styles.textInput, { color: theme.text }]}
+          value={value}
+          onChangeText={onChangeText}
+          keyboardType="numeric"
+          placeholder="0.0"
+          placeholderTextColor={theme.textMuted}
+          blurOnSubmit={false}
+        />
+        <Text style={[styles.suffix, { color: theme.textMuted }]}>{suffix}</Text>
+      </View>
+    </View>
+  );
+}
 
 export default function FinalCalcScreen() {
+  const colorScheme = useColorScheme() ?? 'light';
+  const ui = Colors[colorScheme] || Colors.light;
   const [currentGrade, setCurrentGrade] = useState('3.2');
   const [remainingWeight, setRemainingWeight] = useState('40');
   const [targetGrade, setTargetGrade] = useState('3.5');
@@ -31,72 +63,63 @@ export default function FinalCalcScreen() {
     }
   }, [currentGrade, remainingWeight, targetGrade]);
 
-  const InputField = ({ label, value, onChangeText, suffix }: any) => (
-    <View style={styles.inputItem}>
-      <Text style={styles.inputLabel}>{label}</Text>
-      <View style={styles.inputWrapper}>
-        <TextInput
-          style={styles.textInput}
-          value={value}
-          onChangeText={onChangeText}
-          keyboardType="numeric"
-          placeholder="0.0"
-        />
-        <Text style={styles.suffix}>{suffix}</Text>
-      </View>
-    </View>
-  );
-
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: ui.background }]} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color={accountPalette.text} />
+        <TouchableOpacity onPress={() => router.replace('/(tabs)/mi-cuenta')}>
+          <Ionicons name="chevron-back" size={24} color={ui.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>¿Cuánto necesito en el final?</Text>
+        <Text style={[styles.headerTitle, { color: ui.text }]}>¿Cuánto necesito en el final?</Text>
         <TouchableOpacity>
-          <Ionicons name="information-circle-outline" size={24} color={accountPalette.text} />
+          <Ionicons name="information-circle-outline" size={24} color={ui.text} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.inputsCard}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={[styles.inputsCard, { backgroundColor: ui.surfaceAlt, borderColor: ui.border }]}> 
           <InputField
             label="Nota actual del curso"
             value={currentGrade}
             onChangeText={setCurrentGrade}
             suffix="/ 5.0"
+            theme={ui}
           />
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: ui.border }]} />
           <InputField
             label="Peso de lo que falta (porcentaje)"
             value={remainingWeight}
             onChangeText={setRemainingWeight}
             suffix="%"
+            theme={ui}
           />
-          <View style={styles.divider} />
+          <View style={[styles.divider, { backgroundColor: ui.border }]} />
           <InputField
             label="Nota objetivo"
             value={targetGrade}
             onChangeText={setTargetGrade}
             suffix="/ 5.0"
+            theme={ui}
           />
         </View>
 
-        <View style={styles.resultCard}>
+        <View style={[styles.resultCard, { backgroundColor: ui.surfaceAlt, borderColor: ui.border }]}> 
           <View style={styles.resultHeader}>
-            <Text style={styles.resultTitle}>Necesitas en el final</Text>
-            <Ionicons name="arrow-redo-outline" size={18} color={accountPalette.primary} />
+            <Text style={[styles.resultTitle, { color: ui.text }]}>Necesitas en el final</Text>
+            <Ionicons name="arrow-redo-outline" size={18} color={ui.tint} />
           </View>
           <View style={styles.valueRow}>
-            <Text style={styles.resultValue}>{neededGrade.toFixed(2)}</Text>
-            <Text style={styles.valueSuffix}>/ 5.0</Text>
+            <Text style={[styles.resultValue, { color: ui.text }]}>{neededGrade.toFixed(2)}</Text>
+            <Text style={[styles.valueSuffix, { color: ui.textMuted }]}>/ 5.0</Text>
           </View>
         </View>
 
-        <View style={styles.infoBox}>
-          <Ionicons name="information-circle" size={20} color={accountPalette.textMuted} />
-          <Text style={styles.infoText}>
+        <View style={[styles.infoBox, { backgroundColor: ui.surface, borderColor: ui.border }]}> 
+          <Ionicons name="information-circle" size={20} color={ui.textMuted} />
+          <Text style={[styles.infoText, { color: ui.text }]}> 
             Necesitas sacar <Text style={{ fontWeight: '700' }}>{neededGrade.toFixed(2)}</Text> o más en el final para alcanzar tu nota objetivo.
           </Text>
         </View>
@@ -177,12 +200,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1F3F5',
   },
   resultCard: {
-    backgroundColor: '#F8F9FA',
     borderRadius: 30,
     padding: 30,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#F1F3F5',
     marginBottom: 20,
   },
   resultHeader: {
@@ -194,7 +215,6 @@ const styles = StyleSheet.create({
   resultTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: accountPalette.text,
   },
   valueRow: {
     flexDirection: 'row',
@@ -204,25 +224,22 @@ const styles = StyleSheet.create({
   resultValue: {
     fontSize: 56,
     fontWeight: '800',
-    color: accountPalette.primary,
   },
   valueSuffix: {
     fontSize: 18,
     fontWeight: '600',
-    color: accountPalette.textMuted,
   },
   infoBox: {
     flexDirection: 'row',
-    backgroundColor: '#F8F9FA',
     padding: 16,
     borderRadius: 20,
     gap: 12,
     alignItems: 'center',
+    borderWidth: 1,
   },
   infoText: {
     flex: 1,
     fontSize: 13,
-    color: accountPalette.textMuted,
     lineHeight: 18,
   },
 });
