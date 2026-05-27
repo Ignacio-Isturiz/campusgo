@@ -10,9 +10,13 @@ import {
   Dimensions,
   TextInput,
   Platform,
+  RefreshControl,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { saveLastRoute, getToken } from '@/src/utils/storage';
 import { getSchedule, saveSchedule, deleteBlock as deleteBlockAPI } from '@/src/services/scheduleService';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Colors } from '@/constants/theme';
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
 
@@ -21,11 +25,6 @@ type DayCode = 'L' | 'M' | 'X' | 'J' | 'V' | 'S';
 interface ClassBlock {
   id: string;
   subject: string;
-  code: string;
-  room: string;
-  teacher: string;
-  group: string;
-  credits: number;
   color: string;
   day: DayCode;
   startHour: number;
@@ -62,18 +61,34 @@ const colorFor = (i: number) => PALETTE[i % PALETTE.length];
 // ─── Component ───────────────────────────────────────────────────────────────────
 
 export default function HorarioScreen() {
+  const insets = useSafeAreaInsets();
+  const colorScheme = useColorScheme() ?? 'light';
+  const theme = Colors[colorScheme] || Colors.light;
+  const isDark = colorScheme === 'dark';
+  const scheduleColors = {
+    background: theme.background,
+    surface: theme.surface,
+    surfaceAlt: theme.surfaceAlt,
+    border: theme.border,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    tint: theme.tint,
+    scrim: isDark ? 'rgba(0,0,0,0.55)' : 'rgba(0,0,0,0.38)',
+    dangerBg: isDark ? '#2A1616' : '#FFF0F0',
+  };
   const [blocks, setBlocks] = useState<ClassBlock[]>([]);
   const [detailBlock, setDetailBlock] = useState<ClassBlock | null>(null);
   const [editVisible, setEditVisible] = useState(false);
   const [editData, setEditData] = useState<Partial<ClassBlock>>({});
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     saveLastRoute('/(tabs)/horario');
     loadSchedule();
   }, []);
 
-  const loadSchedule = async () => {
+  const loadSchedule = useCallback(async () => {
     try {
       const token = await getToken();
       if (!token) {
@@ -89,7 +104,13 @@ export default function HorarioScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadSchedule();
+    setRefreshing(false);
+  }, [loadSchedule]);
 
   const persist = useCallback(async (updated: ClassBlock[]) => {
     try {
@@ -114,8 +135,7 @@ export default function HorarioScreen() {
     setEditData({
       id: uid(),
       day, startHour: hour, endHour: hour + 2,
-      subject: '', code: '', room: '', teacher: '', group: '',
-      credits: 3, color: colorFor(blocks.length),
+      subject: '', color: colorFor(blocks.length),
     });
     setEditVisible(true);
   };
@@ -133,9 +153,7 @@ export default function HorarioScreen() {
     }
     const block: ClassBlock = {
       id: editData.id!, subject: editData.subject!,
-      code: editData.code || '', room: editData.room || '',
-      teacher: editData.teacher || '', group: editData.group || '',
-      credits: editData.credits || 3, color: editData.color || colorFor(blocks.length),
+      color: editData.color || colorFor(blocks.length),
       day: editData.day!, startHour: editData.startHour!, endHour: editData.endHour!,
     };
     const exists = blocks.some(b => b.id === block.id);
@@ -191,49 +209,61 @@ const confirmDelete = (id: string) => {
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <View style={s.root}>
+    <View style={[s.root, { backgroundColor: scheduleColors.background }]}>
 
       {/* Top bar */}
-      <View style={s.topBar}>
+      <View style={[s.topBar, { paddingTop: insets.top + 16, backgroundColor: scheduleColors.surface, borderBottomColor: scheduleColors.border }]}> 
         <View>
-          <Text style={s.topEye}>SEMESTRE ACTUAL</Text>
-          <Text style={s.topTitle}>Mi Horario</Text>
+          <Text style={[s.topEye, { color: scheduleColors.textMuted }]}>SEMESTRE ACTUAL</Text>
+          <Text style={[s.topTitle, { color: scheduleColors.text }]}>Mi Horario</Text>
         </View>
-        <TouchableOpacity style={s.addBtn} onPress={() => openNew('L', 8)}>
+        <TouchableOpacity style={[s.addBtn, { backgroundColor: scheduleColors.tint }]} onPress={() => openNew('L', 8)}>
           <Text style={s.addBtnText}>+ Agregar</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={s.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView style={[s.scroll, { backgroundColor: scheduleColors.background }]} showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
 
         {/* Day header row */}
-        <View style={s.headerRow}>
+        <View style={[s.headerRow, { backgroundColor: scheduleColors.surface, borderBottomColor: scheduleColors.border }]}>
           <View style={{ width: TIME_W }} />
           {DAYS.map(d => (
             <View key={d.code} style={[s.dayHeader, { width: DAY_W }]}>
-              <Text style={s.dayHeaderTxt}>{d.label}</Text>
+              <Text style={[s.dayHeaderTxt, { color: scheduleColors.textMuted }]}>{d.label}</Text>
             </View>
           ))}
         </View>
 
         {/* Grid: relative container with absolute children */}
-        <View style={{ height: GRID_H, position: 'relative' }}>
+        <View style={{ height: GRID_H, position: 'relative', backgroundColor: scheduleColors.background }}>
 
           {/* Background hour stripes */}
           {HOURS.map((hr, i) => (
             <View
               key={hr}
-              style={[s.stripe, { top: i * CELL_H, width: SW }]}
+              style={[
+                s.stripe,
+                {
+                  top: i * CELL_H,
+                  width: SW,
+                  borderBottomColor: scheduleColors.border,
+                  backgroundColor: scheduleColors.background,
+                },
+              ]}
             >
               {/* Time label — pinned left, doesn't stretch */}
               <View style={[s.timeLabelBox, { width: TIME_W }]}>
-                <Text style={s.timeLabelTxt}>{hr}:00</Text>
+                <Text style={[s.timeLabelTxt, { color: scheduleColors.textMuted }]}>{hr}:00</Text>
               </View>
               {/* Tappable empty cells */}
               {DAYS.map(d => (
                 <TouchableOpacity
                   key={d.code}
-                  style={[s.emptyCell, { width: DAY_W }]}
+                  style={[s.emptyCell, { width: DAY_W, borderLeftColor: scheduleColors.border }]}
                   onPress={() => openNew(d.code, hr)}
                   activeOpacity={0.35}
                 />
@@ -267,13 +297,7 @@ const confirmDelete = (id: string) => {
               >
                 <View style={[s.blockAccent, { backgroundColor: b.color }]} />
                 <View style={s.blockContent}>
-                  {b.code ? (
-                    <Text style={[s.blockCode, { color: b.color }]} numberOfLines={1}>{b.code}</Text>
-                  ) : null}
-                  <Text style={s.blockName} numberOfLines={height > 72 ? 3 : 2}>{b.subject}</Text>
-                  {height > 80 && b.room ? (
-                    <Text style={s.blockRoom} numberOfLines={1}>{b.room}</Text>
-                  ) : null}
+                  <Text style={[s.blockName, { color: scheduleColors.text }]} numberOfLines={height > 72 ? 3 : 2}>{b.subject}</Text>
                 </View>
               </TouchableOpacity>
             );
@@ -290,7 +314,7 @@ const confirmDelete = (id: string) => {
   animationType="fade"
   onRequestClose={() => setDetailBlock(null)}
 >
-  <View style={s.scrim}>
+  <View style={[s.scrim, { backgroundColor: scheduleColors.scrim }]}>
 
     {/* Fondo */}
     <TouchableOpacity
@@ -301,7 +325,7 @@ const confirmDelete = (id: string) => {
 
     {/* Modal */}
     {detailBlock && (
-      <View style={s.detailCard}>
+      <View style={[s.detailCard, { backgroundColor: scheduleColors.surface }]}>
 
         <View
           style={[
@@ -318,63 +342,27 @@ const confirmDelete = (id: string) => {
               { color: detailBlock.color },
             ]}
           >
-            {[
-              detailBlock.code,
-              DAY_FULL[detailBlock.day],
-              `${detailBlock.startHour}:00 - ${detailBlock.endHour}:00`,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
+            {DAY_FULL[detailBlock.day]} · {detailBlock.startHour}:00 - {detailBlock.endHour}:00
           </Text>
 
-          <Text style={s.detailTitle}>
+          <Text style={[s.detailTitle, { color: scheduleColors.text }]}>
             {detailBlock.subject}
           </Text>
-
-          <View style={s.chipRow}>
-            {detailBlock.room ? (
-              <Chip
-                icon="🏛"
-                val={detailBlock.room}
-              />
-            ) : null}
-
-            <Chip
-              icon="👤"
-              val={
-                detailBlock.teacher?.trim()
-                  ? detailBlock.teacher
-                  : 'Sin profesor'
-              }
-            />
-
-            <Chip
-              icon="📚"
-              val={`${detailBlock.credits} créditos`}
-            />
-
-            {detailBlock.group ? (
-              <Chip
-                icon="👥"
-                val={`Grupo ${detailBlock.group}`}
-              />
-            ) : null}
-          </View>
 
           <View style={s.dRow}>
             <TouchableOpacity
               activeOpacity={0.8}
-              style={s.dEdit}
+              style={[s.dEdit, { backgroundColor: scheduleColors.surfaceAlt }]}
               onPress={() => openEdit(detailBlock)}
             >
-              <Text style={s.dEditTxt}>
+              <Text style={[s.dEditTxt, { color: scheduleColors.text }]}> 
                 ✏ Editar
               </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               activeOpacity={0.8}
-              style={s.dDel}
+              style={[s.dDel, { backgroundColor: scheduleColors.dangerBg }]}
               onPress={() => {
                 confirmDelete(detailBlock.id);
               }}
@@ -386,10 +374,10 @@ const confirmDelete = (id: string) => {
           </View>
 
           <TouchableOpacity
-            style={s.dClose}
+            style={[s.dClose, { backgroundColor: scheduleColors.surfaceAlt }]}
             onPress={() => setDetailBlock(null)}
           >
-            <Text style={s.dCloseTxt}>
+            <Text style={[s.dCloseTxt, { color: scheduleColors.textMuted }]}> 
               Cerrar
             </Text>
           </TouchableOpacity>
@@ -407,9 +395,9 @@ const confirmDelete = (id: string) => {
         animationType="slide"
         onRequestClose={() => setEditVisible(false)}
       >
-        <View style={s.scrim}>
-          <View style={s.editSheet}>
-            <Text style={s.editTitle}>
+        <View style={[s.scrim, { backgroundColor: scheduleColors.scrim }]}> 
+          <View style={[s.editSheet, { backgroundColor: scheduleColors.surface }]}> 
+            <Text style={[s.editTitle, { color: scheduleColors.text }]}> 
               {blocks.some(b => b.id === editData.id) ? 'Editar clase' : 'Nueva clase'}
             </Text>
             <ScrollView
@@ -421,74 +409,59 @@ const confirmDelete = (id: string) => {
                 onChange={v => setEditData(p => ({ ...p, subject: v }))}
                 placeholder="Nombre de la materia" />
 
-              <View style={s.row2}>
-                <View style={{ flex: 1.5, marginRight: 10 }}>
-                  <EF label="CÓDIGO" value={editData.code || ''}
-                    onChange={v => setEditData(p => ({ ...p, code: v }))} placeholder="IF0113" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <EF label="GRUPO" value={editData.group || ''}
-                    onChange={v => setEditData(p => ({ ...p, group: v }))} placeholder="001" />
-                </View>
-              </View>
-
-              <EF label="DOCENTE" value={editData.teacher || ''}
-                onChange={v => setEditData(p => ({ ...p, teacher: v }))}
-                placeholder="Nombre del profesor" />
-              <EF label="AULA" value={editData.room || ''}
-                onChange={v => setEditData(p => ({ ...p, room: v }))} placeholder="02-205" />
-              <EF
-  label="CRÉDITOS"
-  value={String(editData.credits || '')}
-  onChange={v =>
-    setEditData(p => ({
-      ...p,
-      credits: Number(v) || 0,
-    }))
-  }
-  placeholder="3"
-/>
-              <Text style={s.editLabel}>DÍA</Text>
+              <Text style={[s.editLabel, { color: scheduleColors.textMuted }]}>DÍA</Text>
               <View style={s.pillWrap}>
                 {DAYS.map(d => (
                   <TouchableOpacity
                     key={d.code}
-                    style={[s.pill, editData.day === d.code && s.pillOn]}
+                    style={[
+                      s.pill,
+                      { backgroundColor: scheduleColors.surfaceAlt, borderColor: scheduleColors.border },
+                      editData.day === d.code && [s.pillOn, { backgroundColor: scheduleColors.tint, borderColor: scheduleColors.tint }],
+                    ]}
                     onPress={() => setEditData(p => ({ ...p, day: d.code }))}
                   >
-                    <Text style={[s.pillTxt, editData.day === d.code && s.pillTxtOn]}>{d.label}</Text>
+                    <Text style={[s.pillTxt, { color: scheduleColors.textMuted }, editData.day === d.code && s.pillTxtOn]}>{d.label}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              <Text style={s.editLabel}>HORA INICIO</Text>
+              <Text style={[s.editLabel, { color: scheduleColors.textMuted }]}>HORA INICIO</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
                 <View style={s.pillRow}>
                   {HOURS.slice(0, -1).map(h => (
                     <TouchableOpacity
                       key={h}
-                      style={[s.pill, editData.startHour === h && s.pillOn]}
+                      style={[
+                        s.pill,
+                        { backgroundColor: scheduleColors.surfaceAlt, borderColor: scheduleColors.border },
+                        editData.startHour === h && [s.pillOn, { backgroundColor: scheduleColors.tint, borderColor: scheduleColors.tint }],
+                      ]}
                       onPress={() => setEditData(p => ({
                         ...p, startHour: h,
                         endHour: Math.max(h + 1, p.endHour ?? h + 1),
                       }))}
                     >
-                      <Text style={[s.pillTxt, editData.startHour === h && s.pillTxtOn]}>{h}:00</Text>
+                      <Text style={[s.pillTxt, { color: scheduleColors.textMuted }, editData.startHour === h && s.pillTxtOn]}>{h}:00</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               </ScrollView>
 
-              <Text style={s.editLabel}>HORA FIN</Text>
+              <Text style={[s.editLabel, { color: scheduleColors.textMuted }]}>HORA FIN</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 26 }}>
                 <View style={s.pillRow}>
                   {HOURS.filter(h => h > (editData.startHour ?? 6)).map(h => (
                     <TouchableOpacity
                       key={h}
-                      style={[s.pill, editData.endHour === h && s.pillOn]}
+                      style={[
+                        s.pill,
+                        { backgroundColor: scheduleColors.surfaceAlt, borderColor: scheduleColors.border },
+                        editData.endHour === h && [s.pillOn, { backgroundColor: scheduleColors.tint, borderColor: scheduleColors.tint }],
+                      ]}
                       onPress={() => setEditData(p => ({ ...p, endHour: h }))}
                     >
-                      <Text style={[s.pillTxt, editData.endHour === h && s.pillTxtOn]}>{h}:00</Text>
+                      <Text style={[s.pillTxt, { color: scheduleColors.textMuted }, editData.endHour === h && s.pillTxtOn]}>{h}:00</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -496,12 +469,12 @@ const confirmDelete = (id: string) => {
 
               <View style={s.row2}>
                 <TouchableOpacity
-                  style={s.btnCancel}
+                  style={[s.btnCancel, { backgroundColor: scheduleColors.surfaceAlt }]}
                   onPress={() => { setEditVisible(false); setEditData({}); }}
                 >
-                  <Text style={s.btnCancelTxt}>Cancelar</Text>
+                  <Text style={[s.btnCancelTxt, { color: scheduleColors.textMuted }]}>Cancelar</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={s.btnSave} onPress={saveBlock}>
+                <TouchableOpacity style={[s.btnSave, { backgroundColor: scheduleColors.tint }]} onPress={saveBlock}>
                   <Text style={s.btnSaveTxt}>Guardar</Text>
                 </TouchableOpacity>
               </View>
@@ -515,27 +488,20 @@ const confirmDelete = (id: string) => {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────────
 
-function Chip({ icon, val }: { icon: string; val: string }) {
-  return (
-    <View style={ch.wrap}>
-      <Text style={ch.icon}>{icon}</Text>
-      <Text style={ch.txt} numberOfLines={1}>{val}</Text>
-    </View>
-  );
-}
-
 function EF({ label, value, onChange, placeholder }: {
   label: string; value: string; onChange: (v: string) => void; placeholder?: string;
 }) {
+  const colorScheme = useColorScheme() ?? 'light';
+  const theme = Colors[colorScheme] || Colors.light;
   return (
     <View style={{ marginBottom: 14 }}>
-      <Text style={s.editLabel}>{label}</Text>
+      <Text style={[s.editLabel, { color: theme.textMuted }]}>{label}</Text>
       <TextInput
-        style={s.editInput}
+        style={[s.editInput, { backgroundColor: theme.surfaceAlt, borderColor: theme.border, color: theme.text }]}
         value={value}
         onChangeText={onChange}
         placeholder={placeholder}
-        placeholderTextColor="#C4C4C4"
+        placeholderTextColor={theme.textMuted}
       />
     </View>
   );
@@ -549,7 +515,6 @@ const s = StyleSheet.create({
   // Top bar
   topBar: {
     flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between',
-    paddingTop: Platform.OS === 'ios' ? 56 : 20,
     paddingBottom: 16, paddingHorizontal: 20,
     backgroundColor: '#FAFAF8',
     borderBottomWidth: 1, borderBottomColor: '#EEEDEB',
@@ -595,9 +560,7 @@ const s = StyleSheet.create({
   },
   blockAccent: { width: 3 },
   blockContent: { flex: 1, paddingHorizontal: 5, paddingVertical: 5 },
-  blockCode: { fontSize: 9, fontWeight: '800', letterSpacing: 0.5, marginBottom: 2 },
   blockName: { fontSize: 11, fontWeight: '700', color: '#1A1A1A', lineHeight: 14 },
-  blockRoom: { fontSize: 10, color: '#888', marginTop: 3 },
 
   // Scrim
   scrim: {
@@ -663,14 +626,4 @@ const s = StyleSheet.create({
     paddingVertical: 15, alignItems: 'center',
   },
   btnSaveTxt: { fontWeight: '700', color: '#fff', fontSize: 15 },
-});
-
-const ch = StyleSheet.create({
-  wrap: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: '#F4F4F2', borderRadius: 10,
-    paddingHorizontal: 10, paddingVertical: 7, maxWidth: 160,
-  },
-  icon: { fontSize: 13 },
-  txt: { fontSize: 12, fontWeight: '600', color: '#555', flexShrink: 1 },
 });

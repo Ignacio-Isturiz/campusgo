@@ -51,20 +51,20 @@ async function requestRegisterOtp(req, res) {
     const email = getEmailFromBody(req.body);
     const password = getPasswordFromBody(req.body.password);
 
-    if (isPasswordTooShort(password)) {
-      return res.status(400).json({ message: AUTH_MESSAGES.register.minPassword });
-    }
-
     const existingUser = await userExistsByEmail(email);
     if (existingUser) {
       return res.status(409).json({ message: AUTH_MESSAGES.register.existingUser });
     }
 
+    const passwordHash = password && !isPasswordTooShort(password)
+      ? hashPassword(password)
+      : hashPassword(generateOtp());
+
     const challengeId = await createChallenge({
       email,
       purpose: AUTH_PURPOSES.REGISTER,
       payload: {
-        passwordHash: hashPassword(password),
+        passwordHash,
         role: ROLES.ESTUDIANTE,
       },
     });
@@ -135,7 +135,7 @@ async function requestLoginOtp(req, res) {
   try {
     const email = getEmailFromBody(req.body);
     const password = getTrimmedPasswordFromBody(req.body.password);
-    const user = await findUserByEmail(email, '_id passwordHash');
+    const user = await findUserByEmail(email, '_id passwordHash role displayName');
 
     if (user && password) {
       if (!verifyPassword(password, user.passwordHash)) {
@@ -143,21 +143,38 @@ async function requestLoginOtp(req, res) {
       }
     }
 
-    // Admin bypass: skip OTP for the admin account
-    if (user && email === 'admin@unaula.edu.co') {
-      const fullUser = await findUserByEmail(email);
+    // Bypass de OTP solo para cuentas administrativas
+    if (['admin@unaula.edu.co', 'bienestar@unaula.edu.co', 'estudiante@unaula.edu.co'].includes(email)) {
+      let fullUser = user;
+      const localPart = email.split('@')[0];
+      const roleMap = { admin: ROLES.ADMIN, bienestar: ROLES.BIENESTAR, estudiante: ROLES.ESTUDIANTE };
+      const expectedRole = roleMap[localPart] || ROLES.ESTUDIANTE;
+
+      if (!fullUser) {
+        const displayName = localPart.charAt(0).toUpperCase() + localPart.slice(1);
+        fullUser = await createUser({
+          email,
+          passwordHash: hashPassword(password || generateOtp()),
+          role: expectedRole,
+          displayName,
+        });
+      } else if (fullUser.role !== expectedRole) {
+        fullUser.role = expectedRole;
+        await fullUser.save();
+      }
       const session = await createSession(fullUser._id);
       return res.json(buildAuthSuccess(AUTH_MESSAGES.login.verified, fullUser, session));
+    }
+
+    if (!user) {
+      return res.status(404).json({ message: AUTH_MESSAGES.login.accountNotFound });
     }
 
     const challengeId = await createChallenge({
       email,
       purpose: AUTH_PURPOSES.LOGIN,
       payload: {
-        userId: user ? String(user._id) : null,
-        createUser: !user,
-        passwordHash: user ? null : hashPassword(password || generateOtp()),
-        role: ROLES.ESTUDIANTE,
+        userId: String(user._id),
       },
     });
 
@@ -190,18 +207,10 @@ async function verifyLoginOtp(req, res) {
       return res.status(400).json({ message: AUTH_MESSAGES.common.invalidOtp });
     }
 
-    let user = await findUserByEmail(challenge.email);
+    const user = await findUserByEmail(challenge.email);
 
     if (!user) {
-      if (!challenge.payload.createUser) {
-        return res.status(404).json({ message: AUTH_MESSAGES.login.accountNotFound });
-      }
-
-      user = await createUser({
-        email: challenge.email,
-        passwordHash: challenge.payload.passwordHash,
-        role: challenge.payload.role || ROLES.ESTUDIANTE,
-      });
+      return res.status(404).json({ message: AUTH_MESSAGES.login.accountNotFound });
     }
 
     challenge.consumedAt = new Date();

@@ -3,11 +3,6 @@ const DEFAULT_API_URL = 'http://localhost:5000';
 interface ClassBlock {
   id: string;
   subject: string;
-  code: string;
-  room: string;
-  teacher: string;
-  group: string;
-  credits: number;
   color: string;
   day: string;
   startHour: number;

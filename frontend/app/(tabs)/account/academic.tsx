@@ -11,8 +11,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { accountPalette } from '@/src/components/account/AccountStyles';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Colors } from '@/constants/theme';
 
 export default function AcademicScreen() {
+  const colorScheme = useColorScheme() ?? 'light';
+  const ui = Colors[colorScheme] || Colors.light;
   const stats = [
     { label: 'Promedio actual', value: '3.85', icon: 'school-outline', color: '#4CAF50' },
     { label: 'Créditos aprobados', value: '98', icon: 'checkmark-done-circle-outline', color: '#2196F3' },
@@ -21,12 +25,12 @@ export default function AcademicScreen() {
   ];
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: ui.background }]} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color={accountPalette.text} />
+        <TouchableOpacity onPress={() => router.replace('/(tabs)/mi-cuenta')}>
+          <Ionicons name="chevron-back" size={24} color={ui.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Académico</Text>
+        <Text style={[styles.headerTitle, { color: ui.text }]}>Académico</Text>
         <View style={{ width: 24 }} />
       </View>
 
@@ -34,41 +38,41 @@ export default function AcademicScreen() {
         {/* Herramientas Row */}
         <View style={styles.toolsRow}>
           <TouchableOpacity
-            style={[styles.toolCard, { backgroundColor: accountPalette.primary }]}
+            style={[styles.toolCard, { backgroundColor: ui.tint }]}
             onPress={() => router.push('/account/average-calc')}
           >
             <Text style={styles.toolTitle}>Calculadora de promedio</Text>
             <Text style={styles.toolSubtitle}>Calcula tu promedio ponderado con créditos</Text>
             <View style={styles.toolIconBox}>
-              <Ionicons name="stats-chart" size={24} color={accountPalette.primary} />
+              <Ionicons name="stats-chart" size={24} color={ui.tint} />
             </View>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.toolCard, { backgroundColor: '#F8F9FA', borderWidth: 1, borderColor: '#F1F3F5' }]}
+            style={[styles.toolCard, { backgroundColor: ui.surface, borderWidth: 1, borderColor: ui.border }]}
             onPress={() => router.push('/account/final-calc')}
           >
-            <Text style={[styles.toolTitle, { color: accountPalette.text }]}>¿Cuánto necesito en el final?</Text>
-            <Text style={[styles.toolSubtitle, { color: accountPalette.textMuted }]}>Descubre qué nota necesitas para aprobar</Text>
-            <View style={[styles.toolIconBox, { backgroundColor: 'rgba(255, 122, 0, 0.1)' }]}>
-              <Ionicons name="locate" size={28} color={accountPalette.primary} />
+            <Text style={[styles.toolTitle, { color: ui.text }]}>¿Cuánto necesito en el final?</Text>
+            <Text style={[styles.toolSubtitle, { color: ui.textMuted }]}>Descubre qué nota necesitas para aprobar</Text>
+            <View style={[styles.toolIconBox, { backgroundColor: ui.surfaceAlt }]}> 
+              <Ionicons name="locate" size={28} color={ui.tint} />
             </View>
           </TouchableOpacity>
         </View>
 
         {/* Resumen rápido */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Resumen rápido</Text>
+          <Text style={[styles.sectionTitle, { color: ui.text }]}>Resumen rápido</Text>
           <View style={styles.statsList}>
             {stats.map((stat, index) => (
-              <View key={index} style={styles.statItem}>
+              <View key={index} style={[styles.statItem, { backgroundColor: ui.surfaceAlt, borderColor: ui.border }]}> 
                 <View style={styles.statLeft}>
-                  <View style={styles.statIconBox}>
-                    <Ionicons name={stat.icon as any} size={20} color={accountPalette.text} />
+                  <View style={[styles.statIconBox, { backgroundColor: ui.surface }]}>
+                    <Ionicons name={stat.icon as any} size={20} color={ui.text} />
                   </View>
-                  <Text style={styles.statLabel}>{stat.label}</Text>
+                  <Text style={[styles.statLabel, { color: ui.text }]}>{stat.label}</Text>
                 </View>
-                <Text style={[styles.statValue, { color: stat.color === accountPalette.primary ? accountPalette.primary : (stat.label.includes('Promedio') ? '#4CAF50' : accountPalette.text) }]}>
+                <Text style={[styles.statValue, { color: stat.color === accountPalette.primary ? ui.tint : (stat.label.includes('Promedio') ? '#4CAF50' : ui.text) }]}> 
                   {stat.value}
                 </Text>
               </View>

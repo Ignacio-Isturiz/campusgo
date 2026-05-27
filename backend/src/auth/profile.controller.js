@@ -65,10 +65,18 @@ async function updateProfilePhoto(req, res) {
       }
 
       if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY) {
-        const { uploadBase64ToCloudinary } = require('../services/cloudinary');
-        const uploadRes = await uploadBase64ToCloudinary(base64, fileName);
-        user.photoUrl = uploadRes.url;
-        user.photoCloudinaryId = uploadRes.public_id;
+        try {
+          const { uploadBase64ToCloudinary } = require('../services/cloudinary');
+          const uploadRes = await uploadBase64ToCloudinary(base64, fileName);
+          user.photoUrl = uploadRes.url;
+          user.photoCloudinaryId = uploadRes.public_id;
+        } catch (cloudErr) {
+          console.error('Cloudinary upload failed, using GridFS fallback:', cloudErr);
+          const configuredBase = process.env.APP_BASE_URL || `${req.protocol}://${req.get('host')}`;
+          const publicUrl = `${configuredBase}/api/files/${fileId}`;
+          user.photoUrl = publicUrl;
+          user.photoFileId = fileId;
+        }
       } else {
         const configuredBase = process.env.APP_BASE_URL || `${req.protocol}://${req.get('host')}`;
         const publicUrl = `${configuredBase}/api/files/${fileId}`;

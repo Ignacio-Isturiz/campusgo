@@ -16,6 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useWindowDimensions } from 'react-native';
 import { getToken } from '@/src/utils/storage';
 import { deletePost as apiDeletePost } from '@/src/services/postService';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Colors } from '@/constants/theme';
 
 type Props = {
   post: any;
@@ -42,6 +44,16 @@ export default function PostCard({
   const isWeb = Platform.OS === 'web';
   const { width } = useWindowDimensions();
   const isMobile = width < 680;
+  const colorScheme = useColorScheme() ?? 'light';
+  const theme = Colors[colorScheme] || Colors.light;
+  const colors = {
+    surface: theme.surface,
+    surfaceAlt: theme.surfaceAlt,
+    text: theme.text,
+    textMuted: theme.textMuted,
+    border: theme.border,
+    tint: theme.tint,
+  };
   const isAuthor =
     !!currentUserId &&
     (post.userId && (post.userId.id || post.userId._id || post.userId)) === currentUserId;
@@ -97,10 +109,13 @@ export default function PostCard({
     }
   }, [post?.imageUrl, containerWidth]);
   return (
-    <View style={[
-      styles.card,
-      isWeb ? styles.cardWeb : isMobile ? styles.cardMobile : {},
-    ]}>
+    <View
+      style={[
+        styles.card,
+        isWeb ? styles.cardWeb : isMobile ? styles.cardMobile : {},
+        { backgroundColor: colors.surface, borderColor: colors.border },
+      ]}
+    >
       <View style={styles.header}>
         <Image
           source={
@@ -141,9 +156,9 @@ export default function PostCard({
 
             return (
               <>
-                <Text style={[styles.name, isWeb && styles.nameWeb]}>{authorName}</Text>
+                <Text style={[styles.name, isWeb && styles.nameWeb, { color: colors.text }]}>{authorName}</Text>
 
-                <Text style={[styles.username, isWeb && styles.usernameWeb]}>
+                <Text style={[styles.username, isWeb && styles.usernameWeb, { color: colors.textMuted }]}>
                   {email || 'correo@institucional.edu'}
                 </Text>
               </>
@@ -153,7 +168,7 @@ export default function PostCard({
       </View>
 
       {!!post.text && (
-        <Text style={styles.text}>
+        <Text style={[styles.text, { color: colors.text }]}>
           {post.text}
         </Text>
       )}
@@ -172,6 +187,7 @@ export default function PostCard({
               style={[
                 styles.postImage,
                 imageHeight ? { height: imageHeight } : {},
+                { backgroundColor: colors.surfaceAlt },
               ]}
               resizeMode="cover"
             />
@@ -196,7 +212,7 @@ export default function PostCard({
           <TouchableOpacity onPress={handleContact}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Ionicons name="logo-whatsapp" size={18} color="#25D366" />
-              <Text style={[styles.action, { marginLeft: 8 }]}>Contactar</Text>
+              <Text style={[styles.action, { marginLeft: 8, color: colors.text }]}>Contactar</Text>
             </View>
           </TouchableOpacity>
         ) : (
@@ -205,7 +221,7 @@ export default function PostCard({
             style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
           >
             <Ionicons name={liked ? 'heart' : 'heart-outline'} size={18} color={liked ? '#ff4d4d' : '#888'} />
-            <Text style={[styles.action, isWeb && styles.actionWeb, liked ? { color: '#ff4d4d' } : {}]}>
+            <Text style={[styles.action, isWeb && styles.actionWeb, { color: colors.textMuted }, liked ? { color: '#ff4d4d' } : {}]}>
               {likeCount}
             </Text>
           </TouchableOpacity>
@@ -229,15 +245,15 @@ export default function PostCard({
       {/* delete confirmation modal */}
       <Modal visible={deleteModalVisible} animationType="fade" transparent>
         <Pressable style={styles.modalOverlay} onPress={() => setDeleteModalVisible(false)}>
-          <Pressable style={styles.confirmModal}>
-            <Text style={styles.confirmTitle}>Eliminar publicación</Text>
-            <Text style={styles.confirmMessage}>¿Estás segura de eliminar esta publicación?</Text>
+          <Pressable style={[styles.confirmModal, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}> 
+            <Text style={[styles.confirmTitle, { color: colors.text }]}>Eliminar publicación</Text>
+            <Text style={[styles.confirmMessage, { color: colors.textMuted }]}>¿Estás segura de eliminar esta publicación?</Text>
             <View style={styles.confirmButtons}>
               <TouchableOpacity
-                style={[styles.confirmBtn, styles.confirmBtnNo]}
+                style={[styles.confirmBtn, styles.confirmBtnNo, { backgroundColor: colors.surface }]}
                 onPress={() => setDeleteModalVisible(false)}
               >
-                <Text style={styles.confirmBtnTextNo}>No</Text>
+                <Text style={[styles.confirmBtnTextNo, { color: colors.text }]}>No</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.confirmBtn, styles.confirmBtnYes]}
@@ -253,7 +269,6 @@ export default function PostCard({
                     }
                     await apiDeletePost(post._id, token);
                     if (onDeleteSuccess) onDeleteSuccess(post._id);
-                    if (onDelete) onDelete(post._id);
                   } catch (err: any) {
                     console.log('delete error', err);
                     Alert.alert('Error', err?.message || 'No se pudo eliminar');
@@ -276,10 +291,10 @@ export default function PostCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 16,
     marginBottom: 18,
+    borderWidth: 1,
   },
 
   header: {
@@ -295,17 +310,14 @@ const styles = StyleSheet.create({
   },
 
   name: {
-    color: '#111827',
     fontWeight: '700',
   },
 
   username: {
-    color: '#6b7280',
     marginTop: 2,
   },
 
   text: {
-    color: '#111827',
     marginTop: 12,
     lineHeight: 22,
   },
@@ -314,7 +326,6 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 260,
     marginTop: 0,
-    backgroundColor: '#111',
     borderRadius: 12,
   },
 
@@ -325,32 +336,23 @@ const styles = StyleSheet.create({
   },
 
   cardWeb: {
-    backgroundColor: '#ffffff',
     borderWidth: 0,
-    borderColor: '#eee',
     shadowColor: '#000',
     shadowOpacity: 0.06,
     shadowRadius: 10,
     padding: 16,
   },
   cardMobile: {
-    backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 12,
     marginBottom: 14,
   },
 
-  nameWeb: {
-    color: '#ffffff',
-  },
+  nameWeb: {},
 
-  usernameWeb: {
-    color: '#9ca3af',
-  },
+  usernameWeb: {},
 
-  actionWeb: {
-    color: '#ffffff',
-  },
+  actionWeb: {},
 
   actions: {
     flexDirection: 'row',
@@ -359,7 +361,6 @@ const styles = StyleSheet.create({
   },
 
   action: {
-    color: '#fff',
   },
 
   delete: {
@@ -399,7 +400,6 @@ const styles = StyleSheet.create({
   },
 
   confirmModal: {
-    backgroundColor: '#1E1E1E',
     borderRadius: 16,
     padding: 24,
     width: '80%',
@@ -408,14 +408,12 @@ const styles = StyleSheet.create({
   },
 
   confirmTitle: {
-    color: '#fff',
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 8,
   },
 
   confirmMessage: {
-    color: '#999',
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 24,
@@ -436,7 +434,6 @@ const styles = StyleSheet.create({
   },
 
   confirmBtnNo: {
-    backgroundColor: '#2a2a2a',
   },
 
   confirmBtnYes: {

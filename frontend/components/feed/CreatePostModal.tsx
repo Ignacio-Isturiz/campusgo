@@ -10,10 +10,13 @@ import {
   Platform,
   ScrollView,
   Dimensions,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Colors } from '@/constants/theme';
 
 type Props = {
   visible: boolean;
@@ -38,6 +41,8 @@ export default function CreatePostModal({
   const [fileName, setFileName] = useState<string | null>(null);
   const [previewAspectRatio, setPreviewAspectRatio] = useState<number | null>(null);
   const [price, setPrice] = useState<string | null>(null);
+  const colorScheme = useColorScheme() ?? 'light';
+  const theme = Colors[colorScheme] || Colors.light;
   
 
   const [submitting, setSubmitting] = useState(false);
@@ -163,14 +168,26 @@ export default function CreatePostModal({
   return (
     <Modal visible={visible} animationType="fade" transparent>
       <View style={styles.modalOverlay}>
-        <View style={styles.modalPanel}>
-          <ScrollView contentContainerStyle={styles.modalContent}>
-            <View style={styles.headerModal}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalPanelWrap}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 24 : 0}
+        >
+          <View style={[styles.modalPanel, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <ScrollView
+              contentContainerStyle={styles.modalContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+            >
+            <View style={[styles.headerModal, { borderBottomColor: theme.border }]}>
           <TouchableOpacity onPress={handleClose}>
-            <Text style={styles.headerAction}>Cancelar</Text>
+            <Text style={[styles.headerAction, { color: theme.textMuted }]}>Cancelar</Text>
           </TouchableOpacity>
 
-          <Text style={styles.headerTitle}>{bienestarOnly ? 'Nueva publicación de bienestar' : marketplaceOnly ? 'Nuevo producto' : 'Nuevo hilo'}</Text>
+          <Text style={[styles.headerTitle, { color: theme.text }]}>
+            {bienestarOnly ? 'Nueva publicación de bienestar' : marketplaceOnly ? 'Nuevo producto' : 'Nuevo hilo'}
+          </Text>
 
           <TouchableOpacity
             onPress={handleSubmit}
@@ -179,6 +196,7 @@ export default function CreatePostModal({
             <Text
               style={[
                 styles.headerAction,
+                { color: theme.tint },
                 (submitting || (marketplaceOnly ? !(title && title.trim() && text && text.trim() && price && price.trim()) : !(text.trim().length > 0 || imageBase64 || (price && price.trim().length > 0)))) && { opacity: 0.4 },
               ]}
             >
@@ -191,69 +209,71 @@ export default function CreatePostModal({
           <>
             <TextInput
               placeholder="Título del producto"
-              placeholderTextColor="#666"
+              placeholderTextColor={theme.textMuted}
               value={title || ''}
               onChangeText={setTitle}
-              style={[styles.input, { marginTop: 8, height: 44 }]}
+              style={[styles.input, styles.inputCompact, { marginTop: 8, color: theme.text, backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}
             />
 
             <TextInput
               placeholder={'Descripción del producto'}
-              placeholderTextColor="#666"
+              placeholderTextColor={theme.textMuted}
               multiline
               value={text}
               onChangeText={setText}
-              style={[styles.input, styles.inputPanel, { marginTop: 8 }]}
+              style={[styles.input, styles.inputPanelCompact, { marginTop: 8, color: theme.text, backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}
             />
 
             <TextInput
               placeholder="Precio"
-              placeholderTextColor="#666"
+              placeholderTextColor={theme.textMuted}
               value={price || ''}
               onChangeText={(v) => setPrice(v.replace(/[^0-9.,]/g, ''))}
               keyboardType={Platform.OS === 'ios' ? 'decimal-pad' : 'numeric'}
-              style={[styles.input, { marginTop: 8, height: 44 }]}
+              style={[styles.input, styles.inputCompact, { marginTop: 8, color: theme.text, backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}
             />
           </>
         ) : (
           <>
             <TextInput
               placeholder={'¿Qué novedades tienes?'}
-              placeholderTextColor="#666"
+              placeholderTextColor={theme.textMuted}
               multiline
               value={text}
               onChangeText={setText}
-              style={[styles.input, styles.inputPanel, { marginTop: 8 }]}
+              style={[styles.input, styles.inputPanel, { marginTop: 8, color: theme.text, backgroundColor: theme.surfaceAlt, borderColor: theme.border }]}
             />
           </>
         )}
 
         <View style={styles.toolbar}>
-          <TouchableOpacity onPress={handlePickImage} style={styles.iconBtn} accessibilityLabel="Adjuntar imagen o video">
-            <Ionicons name="image-outline" size={22} color="#4DA6FF" />
+          <TouchableOpacity onPress={handlePickImage} style={[styles.iconBtn, styles.iconBtnPrimary, { borderColor: theme.border, backgroundColor: theme.surfaceAlt }]} accessibilityLabel="Adjuntar imagen o video">
+            <Ionicons name="image-outline" size={22} color={theme.tint} />
+            <Text style={[styles.iconBtnText, { color: theme.tint }]}>Agregar imagen</Text>
           </TouchableOpacity>
         </View>
 
-            {imageUri && (
-              <View style={styles.preview}>
-                <View style={styles.previewInner}>
-                  <Image
-                    source={{ uri: imageUri }}
-                    style={[
-                      styles.previewImage,
-                      { height: Math.min(windowHeight * 0.6, 720) },
-                    ]}
-                    resizeMode="contain"
-                  />
+              {imageUri && (
+                <View style={styles.preview}>
+                  <View style={styles.previewInner}>
+                    <Image
+                      source={{ uri: imageUri }}
+                      style={[
+                        styles.previewImage,
+                        { height: Math.min(windowHeight * 0.45, 520) },
+                      ]}
+                      resizeMode="contain"
+                    />
 
-                  <TouchableOpacity onPress={handleRemoveImage} style={styles.removeOverlayBtn} accessibilityLabel="Quitar imagen">
-                    <Text style={styles.removeOverlayText}>✕</Text>
-                  </TouchableOpacity>
+                    <TouchableOpacity onPress={handleRemoveImage} style={styles.removeOverlayBtn} accessibilityLabel="Quitar imagen">
+                      <Text style={styles.removeOverlayText}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
-            )}
-          </ScrollView>
-        </View>
+              )}
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
       </View>
   </Modal>
   );
@@ -267,9 +287,12 @@ const styles = StyleSheet.create({
   },
 
   input: {
-    color: '#111',
     fontSize: 18,
     minHeight: 140,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
 
   button: {
@@ -296,18 +319,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#222',
     marginBottom: 12,
   },
 
   headerTitle: {
-    color: '#111',
     fontWeight: '700',
     fontSize: 16,
   },
 
   headerAction: {
-    color: '#4DA6FF',
     fontWeight: '600',
   },
 
@@ -318,7 +338,22 @@ const styles = StyleSheet.create({
   },
 
   iconBtn: {
-    padding: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  iconBtnPrimary: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  iconBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
 
   preview: {
@@ -371,23 +406,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
   },
+  modalPanelWrap: {
+    width: '100%',
+    maxWidth: 760,
+    alignSelf: 'center',
+  },
 
   modalPanel: {
     width: '100%',
-    maxWidth: 760,
-    backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 18,
-    maxHeight: '90%',
-    overflow: 'hidden',
+    maxHeight: '92%',
+    borderWidth: 1,
   },
 
   modalContent: {
-    paddingBottom: 20,
+    paddingBottom: 28,
   },
 
   inputPanel: {
-    color: '#111',
     minHeight: 120,
+  },
+  inputCompact: {
+    height: 40,
+    minHeight: 40,
+    fontSize: 15,
+  },
+  inputPanelCompact: {
+    minHeight: 80,
+    maxHeight: 120,
+    fontSize: 15,
   },
 });

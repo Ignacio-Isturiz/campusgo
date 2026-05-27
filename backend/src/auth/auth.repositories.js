@@ -38,18 +38,19 @@ async function userExistsByEmail(email) {
   return User.exists({ email });
 }
 
-async function createUser({ email, passwordHash, role }) {
+async function createUser({ email, passwordHash, role, displayName }) {
   return User.create({
     email,
     passwordHash,
     role,
+    ...(displayName ? { displayName } : {}),
   });
 }
 
 async function findSessionWithUserByToken(token) {
   return AuthSession.findOne({ token }).populate({
     path: 'user',
-    select: '_id email role active',
+    select: '_id email role active displayName',
   });
 }
 

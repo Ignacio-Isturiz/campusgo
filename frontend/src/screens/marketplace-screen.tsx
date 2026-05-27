@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, StyleSheet, FlatList, StatusBar, Animated, TouchableOpacity, Text } from 'react-native';
+import { View, StyleSheet, FlatList, StatusBar, Animated, TouchableOpacity, Text, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import PostCard from '@/components/feed/PostCard';
 import { Platform, useWindowDimensions } from 'react-native';
@@ -27,45 +27,52 @@ export default function MarketplaceScreen() {
   const [userPhoto, setUserPhoto] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'home' | 'search' | 'add' | 'notifications' | 'profile'>('home');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadData = useCallback(async () => {
+    try {
+      const savedToken = await getToken();
+      if (!savedToken) return;
+      setToken(savedToken);
+
+      const savedUser = await getUser();
+      let localPhoto: string | null = null;
+      let localUserId: string | null = null;
+      if (savedUser) {
+        localUserId = savedUser.id || savedUser._id;
+        if (localUserId) setCurrentUserId(localUserId);
+        localPhoto = savedUser.photoUrl || savedUser.photo || savedUser.avatar || null;
+        if (localPhoto) setUserPhoto(localPhoto);
+        if (savedUser.role) setUserRole(savedUser.role);
+      }
+
+      const data = await getMarketplace(savedToken);
+      let posts = data;
+      if (localPhoto && localUserId) {
+        posts = (data || []).map((post: any) => {
+          const postUserId = post.userId && (post.userId.id || post.userId._id);
+          if (postUserId === localUserId) {
+            return { ...post, userId: { ...post.userId, photoUrl: localPhoto } };
+          }
+          return post;
+        });
+      }
+      setPosts(posts);
+    } catch (e) {
+      console.log('marketplace init error', e);
+    }
+  }, []);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  }, [loadData]);
 
   useFocusEffect(
     useCallback(() => {
-      const loadData = async () => {
-        try {
-          const savedToken = await getToken();
-          if (!savedToken) return;
-          setToken(savedToken);
-
-          const savedUser = await getUser();
-          let localPhoto: string | null = null;
-          let localUserId: string | null = null;
-          if (savedUser) {
-            localUserId = savedUser.id || savedUser._id;
-            if (localUserId) setCurrentUserId(localUserId);
-            localPhoto = savedUser.photoUrl || savedUser.photo || savedUser.avatar || null;
-            if (localPhoto) setUserPhoto(localPhoto);
-            if (savedUser.role) setUserRole(savedUser.role);
-          }
-
-          const data = await getMarketplace(savedToken);
-          let posts = data;
-          if (localPhoto && localUserId) {
-            posts = (data || []).map((post: any) => {
-              const postUserId = post.userId && (post.userId.id || post.userId._id);
-              if (postUserId === localUserId) {
-                return { ...post, userId: { ...post.userId, photoUrl: localPhoto } };
-              }
-              return post;
-            });
-          }
-          setPosts(posts);
-        } catch (e) {
-          console.log('marketplace init error', e);
-        }
-      };
-
       loadData();
-    }, []),
+    }, [loadData]),
   );
 
   useEffect(() => {
@@ -172,20 +179,27 @@ export default function MarketplaceScreen() {
         <View style={styles.feedHeader}>
           <Text style={[styles.feedTitle, { color: theme.text }]}>Marketplace</Text>
           <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.publishBtn} onPress={() => setModalVisible(true)}>
+            <TouchableOpacity style={[styles.publishBtn, { backgroundColor: theme.tint }]} onPress={() => setModalVisible(true)}>
               <Text style={styles.publishText}>+ Publicar</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Quick composer row - alternate way to open create modal */}
-        <TouchableOpacity style={[styles.composeRow, { backgroundColor: colorScheme === 'dark' ? '#141516' : '#ffffff', borderColor: colorScheme === 'dark' ? '#222' : '#eee' }]} activeOpacity={0.7} onPress={() => setModalVisible(true)}>
+        <TouchableOpacity
+          style={[
+            styles.composeRow,
+            { backgroundColor: theme.surface, borderColor: theme.border },
+          ]}
+          activeOpacity={0.7}
+          onPress={() => setModalVisible(true)}
+        >
           {userPhoto ? (
             <Image source={{ uri: userPhoto }} style={styles.composeAvatar} />
           ) : (
             <Ionicons name="person-circle" size={36} color="#888" />
           )}
-          <Text style={[styles.composePlaceholder, { color: theme.icon }]}>¿Qué quieres compartir hoy?</Text>
+          <Text style={[styles.composePlaceholder, { color: theme.textMuted }]}>¿Qué quieres compartir hoy?</Text>
         </TouchableOpacity>
 
         <View style={[styles.feedContainer, isMobile ? { paddingHorizontal: 8 } : {}]}>
@@ -195,12 +209,13 @@ export default function MarketplaceScreen() {
             keyExtractor={item => item._id}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.feedContent}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
           />
         </View>
 
-        {userRole === 'admin' ? (
         <CreatePostModal visible={modalVisible} onClose={() => setModalVisible(false)} onSubmit={handleCreatePost} marketplaceOnly />
-        ) : null}
 
         
         {/* FAB removed per request */}
