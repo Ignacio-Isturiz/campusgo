@@ -217,7 +217,7 @@ export async function signOut(): Promise<void> {
   if (!token) return;
 
   try {
-    const API_URL = (process.env.EXPO_PUBLIC_API_URL as any) || 'http://localhost:5000';
+    const API_URL = (process.env.EXPO_PUBLIC_API_URL as any) || 'https://campusgo-jjzy.onrender.com';
     await fetch(`${API_URL}/auth/logout`, {
       method: 'POST',
       headers: {

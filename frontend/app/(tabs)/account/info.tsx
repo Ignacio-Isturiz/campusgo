@@ -213,7 +213,7 @@ export default function InfoScreen() {
       try {
         const token = await getUserToken();
         if (token) {
-          const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
+          const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://campusgo-jjzy.onrender.com';
 
           // 1. Upload photo if there's a pending one
           if (pendingPhoto) {

@@ -1,4 +1,4 @@
-const DEFAULT_API_URL = 'http://localhost:5000';
+const DEFAULT_API_URL = 'https://campusgo-jjzy.onrender.com';
 
 type JsonValue = Record<string, unknown>;
 

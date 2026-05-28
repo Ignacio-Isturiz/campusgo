@@ -36,7 +36,7 @@ export default function RootLayout() {
 
       // Verify token with backend to ensure it's valid before redirecting
       try {
-        const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
+        const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://campusgo-jjzy.onrender.com';
         const res = await fetch(`${API_URL}/auth/me`, {
           method: 'GET',
           headers: {
